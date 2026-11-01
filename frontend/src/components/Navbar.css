@@ -1,0 +1,475 @@
+
+/* ==========================================
+   SUNUJOB AI — NAVBAR PROFESSIONNELLE
+   ========================================== */
+
+.sj-navbar,
+.sj-navbar * {
+  box-sizing: border-box;
+}
+
+.sj-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  width: 100%;
+  border-bottom: 1px solid #e9edf6;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 18px rgba(25, 48, 99, 0.035);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+
+.sj-navbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: min(1440px, calc(100% - 64px));
+  min-height: 84px;
+  margin: 0 auto;
+}
+
+/* Logo */
+
+.sj-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  flex-shrink: 0;
+  color: #172d61 !important;
+  text-decoration: none !important;
+}
+
+.sj-brand-symbol {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 45px;
+  height: 45px;
+  overflow: hidden;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(140deg, #1769f5, #8250ed);
+  box-shadow: 0 7px 17px rgba(80, 90, 228, 0.22);
+  transform: rotate(-3deg);
+}
+
+.sj-brand-symbol > span {
+  font-size: 29px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.sj-brand-symbol > i {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  color: #e6f3ff;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.sj-brand-text {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  justify-content: start;
+  column-gap: 4px;
+  line-height: 1;
+}
+
+.sj-brand-text strong {
+  color: #192e62;
+  font-size: 21px;
+  font-weight: 850;
+  letter-spacing: -0.8px;
+}
+
+.sj-brand-text > span {
+  color: #7054ed;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.sj-brand-text small {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+  color: #8390aa;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 1.1px;
+}
+
+/* Liens de navigation */
+
+.sj-desktop-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(13px, 2vw, 29px);
+  margin-left: auto;
+}
+
+.sj-navbar a {
+  text-decoration: none;
+}
+
+.sj-nav-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  color: #63718c !important;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.sj-nav-link::after {
+  position: absolute;
+  right: 0;
+  bottom: 2px;
+  left: 0;
+  height: 2px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #1769f5, #8250ed);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.2s ease;
+}
+
+.sj-nav-link:hover,
+.sj-nav-link-active {
+  color: #315fe1 !important;
+}
+
+.sj-nav-link:hover::after,
+.sj-nav-link-active::after {
+  transform: scaleX(1);
+}
+
+/* Actions à droite */
+
+.sj-navbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  gap: 14px;
+  margin-left: 5px;
+}
+
+.sj-login-btn,
+.sj-account-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 11px;
+  color: #344c7c !important;
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.sj-login-btn:hover,
+.sj-account-btn:hover {
+  color: #315fe1 !important;
+  background: #f0f4ff;
+}
+
+.sj-register-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  min-height: 46px;
+  padding: 0 17px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: #fff !important;
+  background: linear-gradient(110deg, #1769f5, #7950ed);
+  box-shadow: 0 7px 18px rgba(74, 91, 226, 0.22);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-decoration: none !important;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
+}
+
+.sj-register-btn:hover {
+  color: #fff !important;
+  filter: saturate(1.1);
+  transform: translateY(-2px);
+  box-shadow: 0 11px 25px rgba(74, 91, 226, 0.3);
+}
+
+.sj-register-arrow {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.27);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.sj-notification-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #e6ebf6;
+  border-radius: 13px;
+  color: #5c6f94 !important;
+  background: #fff;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.sj-notification-btn:hover {
+  border-color: #d7e1ff;
+  color: #315fe1 !important;
+  background: #f4f7ff;
+}
+
+.sj-notification-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid #fff;
+  border-radius: 50%;
+  background: #f05b76;
+}
+
+/* Menu mobile */
+
+.sj-menu-toggle {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 43px;
+  height: 43px;
+  padding: 0;
+  border: 1px solid #e2e8f5;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.sj-menu-toggle > span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 4px;
+  background: #294779;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.sj-menu-toggle.is-open > span:first-child {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.sj-menu-toggle.is-open > span:nth-child(2) {
+  opacity: 0;
+}
+
+.sj-menu-toggle.is-open > span:last-child {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+.sj-mobile-menu {
+  display: none;
+}
+
+/* Petits écrans et tablettes */
+
+@media (max-width: 1120px) {
+  .sj-navbar-inner {
+    width: calc(100% - 36px);
+    gap: 15px;
+  }
+
+  .sj-desktop-nav {
+    gap: 13px;
+  }
+
+  .sj-nav-link {
+    font-size: 11px;
+  }
+
+  .sj-brand-text strong {
+    font-size: 19px;
+  }
+
+  .sj-navbar-actions {
+    gap: 7px;
+  }
+
+  .sj-register-btn {
+    gap: 8px;
+    padding: 0 12px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 900px) {
+  .sj-navbar-inner {
+    min-height: 74px;
+  }
+
+  .sj-desktop-nav,
+  .sj-navbar-actions {
+    display: none;
+  }
+
+  .sj-menu-toggle {
+    display: flex;
+    flex-shrink: 0;
+  }
+
+  .sj-mobile-menu.is-open {
+    display: block;
+    padding: 9px 18px 20px;
+    border-top: 1px solid #edf0f8;
+    background: #fff;
+    box-shadow: 0 16px 25px rgba(25, 48, 99, 0.07);
+  }
+
+  .sj-mobile-menu nav {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: min(100%, 620px);
+    margin: 0 auto;
+  }
+
+  .sj-mobile-link {
+    display: flex;
+    align-items: center;
+    min-height: 45px;
+    padding: 0 14px;
+    border-radius: 10px;
+    color: #5b6b88 !important;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none !important;
+  }
+
+  .sj-mobile-link:hover,
+  .sj-mobile-link-active {
+    color: #315fe1 !important;
+    background: #f0f4ff;
+  }
+
+  .sj-mobile-actions {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 14px;
+    border-top: 1px solid #edf0f8;
+  }
+
+  .sj-mobile-actions .sj-login-btn,
+  .sj-mobile-actions .sj-register-btn {
+    width: 100%;
+  }
+
+  .sj-mobile-cta {
+    width: 100%;
+    margin-top: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .sj-navbar-inner {
+    width: calc(100% - 26px);
+    min-height: 68px;
+  }
+
+  .sj-brand-symbol {
+    width: 39px;
+    height: 39px;
+    border-radius: 12px;
+  }
+
+  .sj-brand-symbol > span {
+    font-size: 25px;
+  }
+
+  .sj-brand-text strong {
+    font-size: 18px;
+  }
+
+  .sj-brand-text small {
+    font-size: 6px;
+  }
+
+  .sj-mobile-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* Compteur dynamique de notifications */
+.sj-notification-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sj-notification-badge {
+  position: absolute;
+  top: -8px;
+  right: -9px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: #e53952;
+  color: #ffffff;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 800;
+  box-shadow: 0 2px 7px rgb(229 57 82 / 25%);
+}
+
+.sj-mobile-notification-count {
+  margin-left: auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #fff0f2;
+  color: #c62842;
+  font-size: 12px;
+  font-weight: 700;
+}

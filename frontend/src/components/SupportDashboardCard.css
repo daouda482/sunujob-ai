@@ -1,0 +1,122 @@
+
+.support-dashboard-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
+  width: 100%;
+  margin: 24px 0;
+  padding: 28px;
+  border: 1px solid #dbe7ff;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #ffffff 0%, #f1f6ff 100%);
+  box-shadow: 0 8px 28px rgba(30, 64, 175, 0.07);
+  box-sizing: border-box;
+}
+
+.support-dashboard-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 60px;
+  height: 60px;
+  border-radius: 17px;
+  background: #e0eaff;
+  color: #1d4ed8;
+}
+
+.support-dashboard-card__content {
+  min-width: 0;
+  flex: 1;
+}
+
+.support-dashboard-card__eyebrow {
+  display: block;
+  margin-bottom: 8px;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+
+.support-dashboard-card__content h2 {
+  margin: 0 0 10px;
+  color: #172554;
+  font-size: 23px;
+  font-weight: 800;
+}
+
+.support-dashboard-card__content p {
+  max-width: 700px;
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.support-dashboard-card__features {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 18px 0;
+}
+
+.support-dashboard-card__features span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.support-dashboard-card__features svg {
+  color: #2563eb;
+}
+
+.support-dashboard-card__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 45px;
+  padding: 0 18px;
+  border-radius: 10px;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.support-dashboard-card__button:hover {
+  background: #1e40af;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.support-dashboard-card__button:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+  .support-dashboard-card {
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+    border-radius: 15px;
+  }
+
+  .support-dashboard-card__content h2 {
+    font-size: 20px;
+  }
+
+  .support-dashboard-card__features {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}

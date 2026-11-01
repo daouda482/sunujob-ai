@@ -1,0 +1,52 @@
+
+.support-shortcut {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1000;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  min-height: 50px;
+  padding: 0 20px;
+
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+
+  background: #1646a0;
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+
+  box-shadow: 0 8px 24px rgba(22, 70, 160, 0.25);
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.support-shortcut:hover {
+  background: #10377d;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(22, 70, 160, 0.32);
+}
+
+.support-shortcut:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 4px;
+}
+
+@media (max-width: 600px) {
+  .support-shortcut {
+    right: 14px;
+    bottom: 16px;
+    min-height: 46px;
+    padding: 0 15px;
+    font-size: 13px;
+  }
+}
