@@ -34,6 +34,9 @@ import CVAnalysis from "./pages/candidate/CVAnalysis.jsx";
 import AICoach from "./pages/candidate/AICoach.jsx";
 import CandidateCV from "./pages/candidate/CandidateCV.jsx";
 
+import Favorites from "./pages/candidate/Favorites.jsx";
+import JobAlerts from "./pages/candidate/JobAlerts.jsx";
+
 // =====================================================
 // PAGES EMPLOI
 // =====================================================
@@ -269,6 +272,16 @@ function AppRoutes() {
           <Route
             path="/jobs/:id/apply"
             element={<Apply />}
+          />
+          {/* Favoris */}
+          <Route
+            path="/candidate/favorites"
+            element={<Favorites />}
+          />
+          {/* Alertes emploi */}
+          <Route
+            path="/candidate/job-alerts"
+            element={<JobAlerts />}
           />
         </Route>
 

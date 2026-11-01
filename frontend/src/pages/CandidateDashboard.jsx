@@ -5,8 +5,7 @@ import api from "../api/axios";
 import "./CandidateDashboard.css";
 
 const API_ORIGIN = (
-  import.meta.env.VITE_API_BASE_URL ||
-  "http://127.0.0.1:8000/api/"
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/"
 )
   .replace(/\/$/, "")
   .replace(/\/api$/i, "");
@@ -30,6 +29,16 @@ const NAV_GROUPS = [
         label: "Mes candidatures",
         path: "/candidate/applications",
         icon: "▤",
+      },
+      {
+        label: "Mes favoris",
+        path: "/candidate/favorites",
+        icon: "♡",
+      },
+      {
+        label: "Mes alertes emploi",
+        path: "/candidate/job-alerts",
+        icon: "♢",
       },
       {
         label: "Recommandations IA",
@@ -70,7 +79,7 @@ const NAV_GROUPS = [
         label: "Analyse de CV par IA",
         path: "/candidate/cv-analysis",
         icon: "✦",
-        badge: "IA",
+        badge: "Bientôt",
       },
     ],
   },
@@ -97,6 +106,27 @@ function extractList(data) {
   if (Array.isArray(data?.applications)) return data.applications;
   if (Array.isArray(data?.jobs)) return data.jobs;
   return [];
+}
+
+function getErrorText(error) {
+  const status = error.response?.status;
+
+  if (!error.response) {
+    return "Le serveur est inaccessible. Vérifiez que Django est démarré.";
+  }
+
+  if (status === 401) {
+    return "Votre session a expiré. Reconnectez-vous puis réessayez.";
+  }
+
+  if (status === 403) {
+    return "Cette action n'est pas autorisée pour votre compte.";
+  }
+
+  return (
+    error.response?.data?.detail ||
+    "Certaines informations n'ont pas pu être chargées."
+  );
 }
 
 function getStatus(status) {
@@ -159,26 +189,17 @@ function profileCompletion(profile) {
 
 function initials(profile) {
   const first =
-    profile?.first_name ||
-    profile?.user?.first_name ||
-    "";
-
+    profile?.first_name || profile?.user?.first_name || "";
   const last =
-    profile?.last_name ||
-    profile?.user?.last_name ||
-    "";
+    profile?.last_name || profile?.user?.last_name || "";
 
-  return (
-    `${first.charAt(0)}${last.charAt(0)}`.toUpperCase() || "C"
-  );
+  return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase() || "C";
 }
 
 function mediaUrl(value) {
   if (!value) return "";
 
-  if (/^https?:\/\//i.test(value)) {
-    return value;
-  }
+  if (/^https?:\/\//i.test(value)) return value;
 
   return `${API_ORIGIN}${value.startsWith("/") ? value : `/${value}`}`;
 }
@@ -199,14 +220,6 @@ function formatDate(value) {
   });
 }
 
-function getApplicationDate(application) {
-  return (
-    application.applied_at ||
-    application.created_at ||
-    application.submitted_at
-  );
-}
-
 export default function CandidateDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -215,7 +228,6 @@ export default function CandidateDashboard() {
   const [profile, setProfile] = useState(null);
   const [applications, setApplications] = useState([]);
   const [recommendedJobs, setRecommendedJobs] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -234,67 +246,65 @@ export default function CandidateDashboard() {
         return;
       }
 
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
 
       setError("");
 
-      try {
-        const results = await Promise.allSettled([
-          api.get("users/profile/"),
-          api.get("candidates/profile/me/"),
-          api.get("applications/my/"),
-          api.get("matching/recommended-jobs/"),
-        ]);
+      const results = await Promise.allSettled([
+        api.get("users/profile/"),
+        api.get("candidates/profile/me/"),
+        api.get("applications/my/"),
+        api.get("matching/recommended-jobs/"),
+      ]);
 
-        const [
-          userResult,
-          candidateResult,
-          applicationsResult,
-          jobsResult,
-        ] = results;
+      const [
+        userResult,
+        candidateResult,
+        applicationsResult,
+        jobsResult,
+      ] = results;
 
-        const userData =
-          userResult.status === "fulfilled"
-            ? userResult.value.data || {}
-            : {};
+      const userData =
+        userResult.status === "fulfilled"
+          ? userResult.value.data || {}
+          : {};
 
-        const candidateData =
-          candidateResult.status === "fulfilled"
-            ? candidateResult.value.data || {}
-            : {};
+      const candidateData =
+        candidateResult.status === "fulfilled"
+          ? candidateResult.value.data || {}
+          : {};
 
-        const nestedUser = userData.user || userData;
+      const nestedUser = userData.user || userData;
 
-        setProfile({
+      setProfile({
+        ...nestedUser,
+        ...userData,
+        ...candidateData,
+        user: {
           ...nestedUser,
-          ...userData,
-          ...candidateData,
-          user: {
-            ...nestedUser,
-            ...(candidateData.user || {}),
-          },
-        });
+          ...(candidateData.user || {}),
+        },
+      });
 
-        if (applicationsResult.status === "fulfilled") {
-          setApplications(extractList(applicationsResult.value.data));
-        } else {
-          setApplications([]);
-        }
+      if (applicationsResult.status === "fulfilled") {
+        setApplications(extractList(applicationsResult.value.data));
+      } else {
+        setApplications([]);
+      }
 
-        if (jobsResult.status === "fulfilled") {
-          setRecommendedJobs(extractList(jobsResult.value.data));
-        } else {
-          setRecommendedJobs([]);
-        }
+      if (jobsResult.status === "fulfilled") {
+        setRecommendedJobs(extractList(jobsResult.value.data));
+      } else {
+        setRecommendedJobs([]);
+      }
 
-        const meaningfulFailures = results.filter((result, index) => {
+      const meaningfulFailures = results.filter(
+        (result, index) => {
           if (result.status !== "rejected") return false;
 
-          // Le profil candidat peut ne pas encore exister.
+          // Un candidat peut ouvrir son tableau de bord
+          // avant de créer son profil.
           if (
             index === 1 &&
             result.reason?.response?.status === 404
@@ -303,26 +313,24 @@ export default function CandidateDashboard() {
           }
 
           return true;
-        });
-
-        if (meaningfulFailures.length === results.length) {
-          setError(
-            "Impossible de charger les données. Vérifiez votre connexion au serveur puis réessayez."
-          );
-        } else if (meaningfulFailures.length > 0) {
-          setError(
-            "Certaines données ne sont pas disponibles actuellement. Les autres sections restent consultables."
-          );
         }
-      } catch (err) {
-        console.error("Erreur du tableau de bord candidat :", err);
+      );
+
+      const successfulResults =
+        results.length - meaningfulFailures.length;
+
+      if (successfulResults === 0) {
         setError(
-          "Une erreur est survenue pendant le chargement de votre espace candidat."
+          "Impossible de charger les données. Vérifiez la connexion au serveur puis réessayez."
         );
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
+      } else if (meaningfulFailures.length) {
+        setError(
+          "Certaines données ne sont pas disponibles actuellement. Les sections chargées restent consultables."
+        );
       }
+
+      setLoading(false);
+      setRefreshing(false);
     },
     [navigate, location.pathname]
   );
@@ -346,22 +354,15 @@ export default function CandidateDashboard() {
 
   const fullName = useMemo(() => {
     const first =
-      profile?.first_name ||
-      profile?.user?.first_name ||
-      "";
-
+      profile?.first_name || profile?.user?.first_name || "";
     const last =
-      profile?.last_name ||
-      profile?.user?.last_name ||
-      "";
+      profile?.last_name || profile?.user?.last_name || "";
 
     return [first, last].filter(Boolean).join(" ");
   }, [profile]);
 
   const email =
-    profile?.email ||
-    profile?.user?.email ||
-    "";
+    profile?.email || profile?.user?.email || "";
 
   const completion = useMemo(
     () => profileCompletion(profile),
@@ -371,21 +372,16 @@ export default function CandidateDashboard() {
   const applicationStats = useMemo(
     () => ({
       total: applications.length,
-
       active: applications.filter((item) =>
         ["PENDING", "REVIEWING", "SHORTLISTED"].includes(
-          String(item.status || "").toUpperCase()
+          item.status
         )
       ).length,
-
       interviews: applications.filter(
-        (item) =>
-          String(item.status || "").toUpperCase() === "INTERVIEW"
+        (item) => item.status === "INTERVIEW"
       ).length,
-
       accepted: applications.filter(
-        (item) =>
-          String(item.status || "").toUpperCase() === "ACCEPTED"
+        (item) => item.status === "ACCEPTED"
       ).length,
     }),
     [applications]
@@ -395,8 +391,12 @@ export default function CandidateDashboard() {
     return (
       <main className="candidate-dashboard-loading">
         <span className="candidate-dashboard-spinner" />
-        <strong>Préparation de votre espace candidat...</strong>
-        <p>Nous chargeons vos candidatures et vos opportunités.</p>
+        <strong>
+          Préparation de votre espace candidat...
+        </strong>
+        <p>
+          Nous chargeons vos candidatures et vos opportunités.
+        </p>
       </main>
     );
   }
@@ -424,7 +424,6 @@ export default function CandidateDashboard() {
           onClick={() => setSidebarOpen(false)}
         >
           <span className="candidate-brand-mark">S</span>
-
           <span className="candidate-brand-copy">
             SunuJob <strong>AI</strong>
             <small>La carrière en mouvement</small>
@@ -434,7 +433,7 @@ export default function CandidateDashboard() {
         <div className="candidate-sidebar-user">
           <div className="candidate-sidebar-avatar">
             {profile?.photo ? (
-              <img src={mediaUrl(profile.photo)} alt="Photo de profil" />
+              <img src={mediaUrl(profile.photo)} alt="" />
             ) : (
               initials(profile)
             )}
@@ -453,8 +452,13 @@ export default function CandidateDashboard() {
 
         <nav className="candidate-side-nav">
           {NAV_GROUPS.map((group) => (
-            <div className="candidate-nav-group" key={group.title}>
-              <p className="candidate-nav-heading">{group.title}</p>
+            <div
+              className="candidate-nav-group"
+              key={group.title}
+            >
+              <p className="candidate-nav-heading">
+                {group.title}
+              </p>
 
               {group.items.map((item) => (
                 <NavLink
@@ -463,18 +467,21 @@ export default function CandidateDashboard() {
                   end={item.exact}
                   className={({ isActive }) =>
                     `candidate-nav-link ${
-                      isActive ? "candidate-nav-link--active" : ""
+                      isActive
+                        ? "candidate-nav-link--active"
+                        : ""
                     }`
                   }
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <span className="candidate-nav-icon" aria-hidden="true">
+                  <span
+                    className="candidate-nav-icon"
+                    aria-hidden="true"
+                  >
                     {item.icon}
                   </span>
 
-                  <span className="candidate-nav-label">
-                    {item.label}
-                  </span>
+                  <span>{item.label}</span>
 
                   {item.badge && (
                     <span className="candidate-nav-badge">
@@ -497,14 +504,13 @@ export default function CandidateDashboard() {
         <div className="candidate-sidebar-bottom">
           <div className="candidate-help-card">
             <span aria-hidden="true">✦</span>
-
-            <strong>Votre prochain emploi commence ici.</strong>
-
+            <strong>
+              Votre prochain emploi commence ici.
+            </strong>
             <p>
               Gardez votre profil et votre CV à jour pour mieux
               valoriser votre parcours.
             </p>
-
             <Link
               to="/candidate/profile"
               onClick={() => setSidebarOpen(false)}
@@ -547,8 +553,7 @@ export default function CandidateDashboard() {
 
           <div className="candidate-topbar-actions">
             <span className="candidate-topbar-online">
-              <i />
-              En ligne
+              <i /> En ligne
             </span>
 
             <Link
@@ -573,15 +578,19 @@ export default function CandidateDashboard() {
 
         <main className="candidate-dashboard-content">
           {error && (
-            <div className="candidate-dashboard-alert" role="alert">
+            <div
+              className="candidate-dashboard-alert"
+              role="alert"
+            >
               <span>{error}</span>
-
               <button
                 type="button"
                 onClick={() => loadDashboard(true)}
                 disabled={refreshing}
               >
-                {refreshing ? "Actualisation..." : "Réessayer"}
+                {refreshing
+                  ? "Actualisation..."
+                  : "Réessayer"}
               </button>
             </div>
           )}
@@ -589,8 +598,7 @@ export default function CandidateDashboard() {
           <section className="candidate-welcome-hero">
             <div className="candidate-welcome-copy">
               <span className="candidate-welcome-eyebrow">
-                <i />
-                VOTRE ESPACE CARRIÈRE
+                <i /> VOTRE ESPACE CARRIÈRE
               </span>
 
               <h1>
@@ -599,9 +607,10 @@ export default function CandidateDashboard() {
               </h1>
 
               <p>
-                Suivez vos candidatures, découvrez les opportunités qui
-                vous correspondent et faites avancer votre projet
-                professionnel avec SunuJob AI.
+                Suivez vos candidatures, découvrez les
+                opportunités qui vous correspondent et faites
+                avancer votre projet professionnel avec
+                SunuJob AI.
               </p>
 
               <div className="candidate-welcome-actions">
@@ -623,7 +632,10 @@ export default function CandidateDashboard() {
               </div>
             </div>
 
-            <div className="candidate-hero-art" aria-hidden="true">
+            <div
+              className="candidate-hero-art"
+              aria-hidden="true"
+            >
               <div className="candidate-hero-ring candidate-hero-ring--one" />
               <div className="candidate-hero-ring candidate-hero-ring--two" />
 
@@ -641,7 +653,8 @@ export default function CandidateDashboard() {
             </div>
 
             <div className="candidate-hero-bottom-label">
-              Connecter les talents aux opportunités <span>🇸🇳</span>
+              Connecter les talents aux opportunités{" "}
+              <span>🇸🇳</span>
             </div>
           </section>
 
@@ -653,7 +666,8 @@ export default function CandidateDashboard() {
                 </span>
                 <h2>Vue d'ensemble</h2>
                 <p>
-                  Les indicateurs essentiels de votre recherche d'emploi.
+                  Les indicateurs essentiels de votre recherche
+                  d'emploi.
                 </p>
               </div>
 
@@ -663,10 +677,14 @@ export default function CandidateDashboard() {
                 onClick={() => loadDashboard(true)}
                 disabled={refreshing}
               >
-                <span className={refreshing ? "candidate-refresh-spin" : ""}>
+                <span
+                  className={
+                    refreshing ? "candidate-refresh-spin" : ""
+                  }
+                >
                   ↻
                 </span>
-                {refreshing ? "Actualisation..." : "Actualiser"}
+                {refreshing ? "Actualisation" : "Actualiser"}
               </button>
             </div>
 
@@ -693,7 +711,9 @@ export default function CandidateDashboard() {
                   <span className="candidate-stat-icon candidate-stat-icon--violet">
                     ◷
                   </span>
-                  <span className="candidate-stat-caption">En suivi</span>
+                  <span className="candidate-stat-caption">
+                    En suivi
+                  </span>
                 </div>
                 <strong>{applicationStats.active}</strong>
                 <h3>En cours de traitement</h3>
@@ -747,23 +767,31 @@ export default function CandidateDashboard() {
                     VOTRE PRÉSENCE
                   </span>
                   <h2>Profil professionnel</h2>
-                  <p>Présentez un dossier complet et à jour.</p>
+                  <p>
+                    Présentez un dossier complet et à jour.
+                  </p>
                 </div>
-                <span className="candidate-panel-heading-icon">♙</span>
+                <span className="candidate-panel-heading-icon">
+                  ♙
+                </span>
               </div>
 
               <div className="candidate-profile-summary">
                 <div className="candidate-profile-avatar">
                   {profile?.photo ? (
-                    <img src={mediaUrl(profile.photo)} alt="Photo de profil" />
+                    <img src={mediaUrl(profile.photo)} alt="" />
                   ) : (
                     initials(profile)
                   )}
                 </div>
 
                 <div className="candidate-profile-summary-copy">
-                  <strong>{fullName || "Votre profil candidat"}</strong>
-                  <span>{email || "Ajoutez votre adresse e-mail"}</span>
+                  <strong>
+                    {fullName || "Votre profil candidat"}
+                  </strong>
+                  <span>
+                    {email || "Ajoutez votre adresse e-mail"}
+                  </span>
                   <small>
                     {profile?.field_of_study ||
                       "Domaine de formation à préciser"}
@@ -803,12 +831,16 @@ export default function CandidateDashboard() {
                 <span>→</span>
               </Link>
 
-              <Link to="/candidate/cv" className="candidate-secondary-action">
+              <Link
+                to="/candidate/cv"
+                className="candidate-secondary-action"
+              >
                 <span>▧</span>
                 <span>
                   <strong>Gérer mon CV</strong>
                   <small>
-                    Consultez, importez ou remplacez votre CV professionnel.
+                    Consultez, importez ou remplacez votre CV
+                    professionnel.
                   </small>
                 </span>
                 <b>→</b>
@@ -823,7 +855,8 @@ export default function CandidateDashboard() {
                   </span>
                   <h2>Offres recommandées</h2>
                   <p>
-                    Des postes à explorer pour la suite de votre parcours.
+                    Des postes à explorer pour la suite de votre
+                    parcours.
                   </p>
                 </div>
                 <span className="candidate-panel-heading-icon candidate-panel-heading-icon--violet">
@@ -838,14 +871,14 @@ export default function CandidateDashboard() {
                     Aucune recommandation pour le moment
                   </strong>
                   <p>
-                    Complétez votre profil et explorez les offres publiées
-                    pour découvrir les opportunités.
+                    Complétez votre profil et explorez les offres
+                    publiées pour découvrir les opportunités.
                   </p>
                   <Link
                     to="/jobs"
                     className="candidate-button candidate-button--primary"
                   >
-                    Découvrir les offres →
+                    Découvrir les offres
                   </Link>
                 </div>
               ) : (
@@ -857,22 +890,30 @@ export default function CandidateDashboard() {
                       "Entreprise";
 
                     return (
-                      <article className="candidate-job-row" key={job.id}>
+                      <article
+                        className="candidate-job-row"
+                        key={job.id}
+                      >
                         <div className="candidate-company-mark">
                           {company.charAt(0).toUpperCase()}
                         </div>
 
                         <div className="candidate-job-copy">
-                          <strong>{job.title || "Offre d'emploi"}</strong>
+                          <strong>
+                            {job.title || "Offre d'emploi"}
+                          </strong>
                           <span>
                             {company}
-                            {job.location ? ` · ${job.location}` : ""}
+                            {job.location
+                              ? ` · ${job.location}`
+                              : ""}
                           </span>
 
                           {job.match_score !== undefined &&
                             job.match_score !== null && (
                               <small>
-                                Compatibilité estimée : {job.match_score}%
+                                Compatibilité estimée :{" "}
+                                {job.match_score}%
                               </small>
                             )}
                         </div>
@@ -880,7 +921,9 @@ export default function CandidateDashboard() {
                         <Link
                           to={`/jobs/${job.id}`}
                           className="candidate-job-arrow"
-                          aria-label={`Consulter ${job.title || "l'offre"}`}
+                          aria-label={`Consulter ${
+                            job.title || "l'offre"
+                          }`}
                         >
                           ↗
                         </Link>
@@ -907,8 +950,8 @@ export default function CandidateDashboard() {
                 </span>
                 <h2>Mes dernières candidatures</h2>
                 <p>
-                  Consultez rapidement les dernières évolutions de vos
-                  dossiers.
+                  Consultez rapidement les dernières évolutions
+                  de vos dossiers.
                 </p>
               </div>
 
@@ -924,10 +967,13 @@ export default function CandidateDashboard() {
               {applications.length === 0 ? (
                 <div className="candidate-empty-state">
                   <span>▤</span>
-                  <strong>Votre recherche commence ici</strong>
+                  <strong>
+                    Votre recherche commence ici
+                  </strong>
                   <p>
-                    Vous n'avez pas encore envoyé de candidature. Parcourez
-                    les offres et postulez aux postes qui vous correspondent.
+                    Vous n'avez pas encore envoyé de candidature.
+                    Parcourez les offres et postulez aux postes qui
+                    vous correspondent.
                   </p>
                   <Link
                     to="/jobs"
@@ -954,18 +1000,28 @@ export default function CandidateDashboard() {
                           <td>
                             <div className="candidate-table-job">
                               <span className="candidate-company-mark">
-                                {getCompanyName(application)
-                                  .charAt(0)
-                                  .toUpperCase()}
+                                {getCompanyName(
+                                  application
+                                ).charAt(0).toUpperCase()}
                               </span>
+
                               <span>
-                                <strong>{getJobTitle(application)}</strong>
-                                <small>{getCompanyName(application)}</small>
+                                <strong>
+                                  {getJobTitle(application)}
+                                </strong>
+                                <small>
+                                  {getCompanyName(application)}
+                                </small>
                               </span>
                             </div>
                           </td>
 
-                          <td>{formatDate(getApplicationDate(application))}</td>
+                          <td>
+                            {formatDate(
+                              application.applied_at ||
+                                application.created_at
+                            )}
+                          </td>
 
                           <td>
                             <span
@@ -1005,9 +1061,12 @@ export default function CandidateDashboard() {
 
           <footer className="candidate-dashboard-footer">
             <span>
-              © {new Date().getFullYear()} SunuJob AI · Conçu au Sénégal 🇸🇳
+              © {new Date().getFullYear()} SunuJob AI · Conçu au
+              Sénégal 🇸🇳
             </span>
-            <span>Chaque talent mérite une opportunité.</span>
+            <span>
+              Chaque talent mérite une opportunité.
+            </span>
           </footer>
         </main>
       </div>
