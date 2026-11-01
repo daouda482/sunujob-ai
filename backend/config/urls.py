@@ -230,6 +230,8 @@ urlpatterns = [
         AdminJobStatusAPIView.as_view(),
         name="admin-job-status",
     ),
+    path("api/favorites/", include("favorites.urls")),
+    path("api/job-alerts/", include("job_alerts.urls")),
 
     # Gestion des candidatures
     path(

@@ -63,6 +63,8 @@ INSTALLED_APPS = [
     "matching",
     "ai_coach",
     "ai_engine",
+    "job_alerts.apps.JobAlertsConfig",
+    "favorites",
 ]
 
 
