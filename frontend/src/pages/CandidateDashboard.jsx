@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import api from "../../api/axios";
-// import "./CandidateDashboard.css";
+import "./CandidateDashboard.css";
 
 const API_ORIGIN = (
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/"
