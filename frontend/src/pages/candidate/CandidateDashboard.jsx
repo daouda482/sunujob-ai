@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
@@ -23,160 +22,118 @@ import {
   UserRound,
   GraduationCap,
   Sparkles,
+  X,
+  AlertCircle,
+  TrendingUp,
+  ExternalLink,
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 // import "./CandidateDashboard.css";
+
 const API_ORIGIN = (
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/"
 ).replace(/\/api\/?$/, "");
 
-const NAV_GROUPS = [
-  {
-    title: "ESPACE CANDIDAT",
-    items: [
-      { label: "Tableau de bord", path: "/candidate/dashboard", icon: LayoutDashboard },
-      { label: "Trouver un emploi", path: "/jobs", icon: Search },
-      { label: "Mes candidatures", path: "/candidate/applications", icon: FileText },
-      { label: "Offres favorites", path: "/candidate/favorites", icon: Heart },
-      { label: "Alertes emploi", path: "/candidate/job-alerts", icon: Bell },
-      { label: "Recommandations", path: "/candidate/recommendations", icon: Sparkles },
-    ],
-  },
-  {
-    title: "MON PROFIL",
-    items: [
-      { label: "Informations personnelles", path: "/candidate/profile", icon: UserRound },
-      { label: "Mon CV", path: "/candidate/cv", icon: FileText },
-    ],
-  },
-  {
-    title: "OUTILS CARRIÈRE",
-    items: [
-      { label: "Entretiens", path: "/candidate/interviews", icon: CalendarDays },
-      { label: "Coach carrière", path: "/candidate/ai-coach", icon: GraduationCap },
-      { label: "Analyse de CV", path: "/candidate/cv-analysis", icon: Activity },
-    ],
-  },
-  {
-    title: "ASSISTANCE",
-    items: [
-      { label: "Notifications", path: "/candidate/notifications", icon: Bell },
-      { label: "Centre d'aide", path: "/support", icon: LifeBuoy },
-    ],
-  },
-];
+const extractList = (response) => {
+  const data = response?.data ?? response;
 
-function extractList(payload) {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.results)) return payload.results;
-  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.results)) return data.results;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.jobs)) return data.jobs;
+  if (Array.isArray(data?.applications)) return data.applications;
+
   return [];
-}
+};
 
-function getStatus(value) {
-  const status = String(value || "").toUpperCase();
+const getStatus = (application) => {
+  const status = String(application?.status || "PENDING").toUpperCase();
 
   const statuses = {
-    PENDING: { label: "En attente", className: "pending" },
-    REVIEWING: { label: "En cours d'étude", className: "reviewing" },
-    SHORTLISTED: { label: "Présélectionné", className: "shortlisted" },
-    INTERVIEW: { label: "Entretien", className: "interview" },
-    ACCEPTED: { label: "Acceptée", className: "accepted" },
-    REJECTED: { label: "Non retenue", className: "rejected" },
-    WITHDRAWN: { label: "Retirée", className: "withdrawn" },
+    PENDING: "En attente",
+    REVIEWING: "En cours d'examen",
+    SHORTLISTED: "Présélectionné",
+    INTERVIEW: "Entretien",
+    ACCEPTED: "Acceptée",
+    REJECTED: "Non retenue",
+    WITHDRAWN: "Retirée",
   };
 
-  return statuses[status] || {
-    label: value || "Non renseigné",
-    className: "default",
+  return {
+    label: statuses[status] || status,
+    className: status.toLowerCase(),
   };
-}
+};
 
-function getJobTitle(application) {
-  return (
-    application?.job?.title ||
-    application?.job_title ||
-    application?.title ||
-    "Offre d'emploi"
-  );
-}
+const getJobTitle = (application) =>
+  application?.job?.title ||
+  application?.job_title ||
+  application?.title ||
+  "Offre d'emploi";
 
-function getCompanyName(application) {
-  return (
-    application?.job?.company?.name ||
-    application?.company?.name ||
-    application?.company_name ||
-    "Entreprise"
-  );
-}
+const getCompanyName = (application) =>
+  application?.job?.company?.name ||
+  application?.company?.name ||
+  application?.company_name ||
+  "Entreprise";
 
-function getRecommendedJobTitle(job) {
-  return job?.title || job?.job_title || "Offre d'emploi";
-}
+const getRecommendedJobTitle = (job) =>
+  job?.job?.title ||
+  job?.title ||
+  job?.job_title ||
+  "Offre recommandée";
 
-function getRecommendedCompany(job) {
-  return (
-    job?.company?.name ||
-    job?.company_name ||
-    job?.recruiter?.company_name ||
-    "Entreprise"
-  );
-}
+const getRecommendedCompany = (job) =>
+  job?.job?.company?.name ||
+  job?.company?.name ||
+  job?.company_name ||
+  "Entreprise";
 
-function getRecommendedLocation(job) {
-  return (
-    job?.location ||
-    job?.city ||
-    job?.company?.city ||
-    "Lieu non précisé"
-  );
-}
+const getRecommendedLocation = (job) =>
+  job?.job?.location ||
+  job?.location ||
+  job?.city ||
+  "Localisation non précisée";
 
-function profileCompletion(profile) {
-  if (!profile) return 0;
-
+const profileCompletion = (profile, user) => {
   const fields = [
-    profile.first_name || profile.user?.first_name,
-    profile.last_name || profile.user?.last_name,
-    profile.phone,
-    profile.city || profile.address,
-    profile.education_level,
-    profile.field_of_study,
-    profile.years_of_experience !== undefined &&
-      profile.years_of_experience !== null,
-    profile.biography,
-    profile.resume,
+    profile?.first_name || user?.first_name,
+    profile?.last_name || user?.last_name,
+    profile?.email || user?.email,
+    profile?.phone,
+    profile?.city,
+    profile?.education_level,
+    profile?.field_of_study,
+    profile?.years_of_experience !== undefined &&
+      profile?.years_of_experience !== null,
+    profile?.biography,
+    profile?.resume,
   ];
 
-  const completed = fields.filter((field) => {
-    if (typeof field === "boolean") return field;
-    return field !== undefined && field !== null && String(field).trim() !== "";
-  }).length;
-
+  const completed = fields.filter(Boolean).length;
   return Math.round((completed / fields.length) * 100);
-}
+};
 
-function initials(firstName, lastName, email) {
-  const first = String(firstName || "").trim();
-  const last = String(lastName || "").trim();
+const initials = (name = "") =>
+  name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "C";
 
-  if (first || last) {
-    return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+const mediaUrl = (value) => {
+  if (!value || typeof value !== "string") return "";
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
   }
+  if (value.startsWith("/")) return `${API_ORIGIN}${value}`;
+  return `${API_ORIGIN}/${value}`;
+};
 
-  return String(email || "C").charAt(0).toUpperCase();
-}
-
-function mediaUrl(value) {
-  if (!value) return "";
-  if (/^https?:\/\//i.test(value)) return value;
-
-  const cleanPath = String(value).replace(/^\/+/, "");
-  return `${API_ORIGIN}/${cleanPath}`;
-}
-
-function formatDate(value) {
+const formatDate = (value) => {
   if (!value) return "Date non précisée";
 
   const date = new Date(value);
@@ -187,23 +144,24 @@ function formatDate(value) {
     month: "short",
     year: "numeric",
   }).format(date);
-}
+};
 
-function getDisplayName(user, profile) {
+const getDisplayName = (user, profile) => {
   const firstName =
-    profile?.first_name ||
-    profile?.user?.first_name ||
-    user?.first_name ||
-    "";
-
+    profile?.first_name || user?.first_name || user?.firstName || "";
   const lastName =
-    profile?.last_name ||
-    profile?.user?.last_name ||
-    user?.last_name ||
-    "";
+    profile?.last_name || user?.last_name || user?.lastName || "";
 
-  return `${firstName} ${lastName}`.trim() || user?.email || "Candidat";
-}
+  const fullName = `${firstName} ${lastName}`.trim();
+
+  return (
+    fullName ||
+    user?.full_name ||
+    user?.username ||
+    user?.email?.split("@")[0] ||
+    "Candidat"
+  );
+};
 
 export default function CandidateDashboard() {
   const navigate = useNavigate();
@@ -228,176 +186,174 @@ export default function CandidateDashboard() {
   const [error, setError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const loadDashboard = useCallback(
-    async ({ silent = false } = {}) => {
-      const token =
-        localStorage.getItem("access") || sessionStorage.getItem("access");
-
-      if (!token) {
-        navigate("/login", { replace: true });
-        return;
-      }
-
-      if (silent) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-
-      setError("");
-
-      try {
-        const requests = await Promise.allSettled([
-          api.get("users/profile/"),
-          api.get("candidates/profile/me/"),
-          api.get("applications/my/"),
-          api.get("matching/recommended-jobs/"),
-        ]);
-
-        const [userResult, profileResult, applicationsResult, jobsResult] =
-          requests;
-
-        if (userResult.status === "fulfilled") {
-          const userData = userResult.value.data;
-
-          setUser((previous) => {
-            const merged = {
-              ...(previous || {}),
-              ...(userData || {}),
-            };
-
-            localStorage.setItem("user", JSON.stringify(merged));
-            sessionStorage.setItem("user", JSON.stringify(merged));
-
-            return merged;
-          });
-        }
-
-        if (profileResult.status === "fulfilled") {
-          setProfile(profileResult.value.data || null);
-        } else if (profileResult.reason?.response?.status === 404) {
-          setProfile(null);
-        }
-
-        if (applicationsResult.status === "fulfilled") {
-          setApplications(extractList(applicationsResult.value.data));
-        }
-
-        if (jobsResult.status === "fulfilled") {
-          setRecommendedJobs(extractList(jobsResult.value.data));
-        }
-
-        const failedRequests = requests.filter(
-          (result) => result.status === "rejected"
-        );
-
-        if (failedRequests.length === requests.length) {
-          setError(
-            "Impossible de charger les données du tableau de bord. Vérifie ta connexion puis réessaie."
-          );
-        } else if (failedRequests.length > 0) {
-          setError(
-            "Certaines informations n'ont pas pu être chargées. Tu peux actualiser le tableau de bord."
-          );
-        }
-      } catch (requestError) {
-        console.error("Erreur de chargement du tableau de bord :", requestError);
-
-        setError(
-          "Une erreur est survenue lors du chargement du tableau de bord."
-        );
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [navigate]
-  );
-
-  useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
-
-  useEffect(() => {
-    if (!menuOpen) return undefined;
-
-    const closeOnEscape = (event) => {
-      if (event.key === "Escape") {
-        setMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("keydown", closeOnEscape);
-
-    return () => {
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [menuOpen]);
+  const accessToken =
+    localStorage.getItem("access") || sessionStorage.getItem("access");
 
   const displayName = useMemo(
     () => getDisplayName(user, profile),
     [user, profile]
   );
 
-  const firstName =
-    profile?.first_name ||
-    profile?.user?.first_name ||
-    user?.first_name ||
-    displayName.split(" ")[0];
+  const firstName = displayName.split(" ")[0];
 
-  const email =
-    profile?.email ||
-    profile?.user?.email ||
-    user?.email ||
-    "";
-
-  const avatar = mediaUrl(
-    profile?.photo || profile?.avatar || user?.photo
+  const completion = useMemo(
+    () => profileCompletion(profile || {}, user || {}),
+    [profile, user]
   );
 
-  const completion = profileCompletion(profile);
+  const loadDashboard = useCallback(async (isRefresh = false) => {
+    if (!accessToken) {
+      navigate("/login", { replace: true });
+      return;
+    }
 
-  const stats = useMemo(() => {
-    const total = applications.length;
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
 
-    const active = applications.filter((application) =>
-      ["PENDING", "REVIEWING", "SHORTLISTED"].includes(
-        String(application.status || "").toUpperCase()
-      )
-    ).length;
+    setError("");
 
-    const interviews = applications.filter(
-      (application) =>
-        String(application.status || "").toUpperCase() === "INTERVIEW"
-    ).length;
+    const requests = await Promise.allSettled([
+      api.get("users/profile/"),
+      api.get("candidates/profile/me/"),
+      api.get("applications/my/"),
+      api.get("matching/recommended-jobs/"),
+    ]);
 
-    const accepted = applications.filter(
-      (application) =>
-        String(application.status || "").toUpperCase() === "ACCEPTED"
-    ).length;
+    const [userResult, profileResult, applicationsResult, jobsResult] =
+      requests;
 
-    return {
-      total,
-      active,
-      interviews,
-      accepted,
-    };
-  }, [applications]);
+    console.log("Résultat API du tableau de bord :", {
+      user: userResult,
+      profile: profileResult,
+      applications: applicationsResult,
+      recommendations: jobsResult,
+    });
+
+    let failedRequests = 0;
+
+    if (userResult.status === "fulfilled") {
+      const userData = userResult.value?.data;
+      if (userData && typeof userData === "object") {
+        setUser((previous) => ({ ...(previous || {}), ...userData }));
+        try {
+          const storage = localStorage.getItem("access")
+            ? localStorage
+            : sessionStorage;
+          storage.setItem("user", JSON.stringify(userData));
+        } catch {
+          // Le tableau de bord reste utilisable même si le stockage échoue.
+        }
+      }
+    } else {
+      failedRequests += 1;
+      console.error("Erreur users/profile/ :", userResult.reason);
+    }
+
+    if (profileResult.status === "fulfilled") {
+      setProfile(profileResult.value?.data || null);
+    } else {
+      failedRequests += 1;
+      console.error(
+        "Erreur candidates/profile/me/ :",
+        profileResult.reason
+      );
+    }
+
+    if (applicationsResult.status === "fulfilled") {
+      setApplications(extractList(applicationsResult.value));
+    } else {
+      failedRequests += 1;
+      console.error(
+        "Erreur applications/my/ :",
+        applicationsResult.reason
+      );
+    }
+
+    if (jobsResult.status === "fulfilled") {
+      setRecommendedJobs(extractList(jobsResult.value));
+    } else {
+      failedRequests += 1;
+      console.error(
+        "Erreur matching/recommended-jobs/ :",
+        jobsResult.reason
+      );
+    }
+
+    if (failedRequests === requests.length) {
+      setError(
+        "Impossible de charger les données du tableau de bord. Vérifie ta connexion et l'authentification."
+      );
+    } else if (failedRequests > 0) {
+      setError(
+        "Certaines informations n'ont pas pu être chargées. Les autres sections restent disponibles."
+      );
+    }
+
+    setLoading(false);
+    setRefreshing(false);
+  }, [accessToken, navigate]);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
 
   const handleLogout = () => {
-    ["access", "refresh", "user"].forEach((key) => {
-      localStorage.removeItem(key);
-      sessionStorage.removeItem(key);
-    });
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
+    localStorage.removeItem("user");
+
+    sessionStorage.removeItem("access");
+    sessionStorage.removeItem("refresh");
+    sessionStorage.removeItem("user");
 
     navigate("/login", { replace: true });
   };
 
+  const totalApplications = applications.length;
+  const pendingApplications = applications.filter((item) =>
+    ["PENDING", "REVIEWING"].includes(
+      String(item?.status || "PENDING").toUpperCase()
+    )
+  ).length;
+  const interviewApplications = applications.filter((item) =>
+    ["INTERVIEW", "SHORTLISTED"].includes(
+      String(item?.status || "").toUpperCase()
+    )
+  ).length;
+
+  const navigation = [
+    {
+      label: "Vue d'ensemble",
+      to: "/candidate/dashboard",
+      icon: LayoutDashboard,
+    },
+    { label: "Trouver un emploi", to: "/jobs", icon: Search },
+    {
+      label: "Mes candidatures",
+      to: "/candidate/applications",
+      icon: FileText,
+    },
+    {
+      label: "Mes recommandations",
+      to: "/candidate/recommendations",
+      icon: Sparkles,
+    },
+    {
+      label: "Mon profil",
+      to: "/candidate/profile",
+      icon: UserRound,
+    },
+  ];
+
   if (loading) {
     return (
       <div className="candidate-dashboard-loading">
+        <div className="candidate-loading-logo">
+          <BriefcaseBusiness size={28} />
+        </div>
         <div className="candidate-loading-spinner" />
-        <p>Chargement de votre espace candidat...</p>
+        <h2>Préparation de votre espace</h2>
+        <p>Nous récupérons vos informations...</p>
       </div>
     );
   }
@@ -406,113 +362,97 @@ export default function CandidateDashboard() {
     <div className="candidate-dashboard">
       {menuOpen && (
         <button
-          className="candidate-sidebar-overlay"
           type="button"
+          className="candidate-sidebar-overlay"
           aria-label="Fermer le menu"
           onClick={() => setMenuOpen(false)}
         />
       )}
 
       <aside
-        className={`candidate-sidebar ${menuOpen ? "is-open" : ""}`}
-        aria-label="Navigation candidat"
+        className={`candidate-sidebar ${
+          menuOpen ? "candidate-sidebar-open" : ""
+        }`}
       >
-        <Link
-          to="/candidate/dashboard"
-          className="candidate-brand"
-          onClick={() => setMenuOpen(false)}
-        >
-          <span className="candidate-brand-mark">
-            <BriefcaseBusiness size={21} strokeWidth={2.2} />
-          </span>
-
-          <span className="candidate-brand-text">
-            <strong>SunuJob</strong>
-            <small>ESPACE CANDIDAT</small>
-          </span>
-        </Link>
-
-        <div className="candidate-sidebar-user">
-          <div className="candidate-avatar">
-            {avatar ? (
-              <img src={avatar} alt="Photo de profil" />
-            ) : (
-              initials(
-                profile?.first_name || user?.first_name,
-                profile?.last_name || user?.last_name,
-                email
-              )
-            )}
+        <div className="candidate-brand">
+          <div className="candidate-brand-icon">
+            <BriefcaseBusiness size={23} />
           </div>
-
-          <div className="candidate-sidebar-user-info">
-            <strong>{displayName}</strong>
-            <span>{email || "Compte candidat"}</span>
+          <div className="candidate-brand-text">
+            <strong>SunuJob<span> AI</span></strong>
+            <small>Votre carrière, notre priorité</small>
           </div>
-
-          <span className="candidate-online-dot" title="Connecté" />
+          <button
+            type="button"
+            className="candidate-mobile-close"
+            onClick={() => setMenuOpen(false)}
+            aria-label="Fermer le menu"
+          >
+            <X size={20} />
+          </button>
         </div>
 
-        <nav className="candidate-navigation">
-          {NAV_GROUPS.map((group) => (
-            <div className="candidate-nav-group" key={group.title}>
-              <p className="candidate-nav-heading">{group.title}</p>
+        <div className="candidate-sidebar-section">
+          <span className="candidate-sidebar-label">ESPACE CANDIDAT</span>
 
-              {group.items.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    end={item.path === "/candidate/dashboard"}
-                    onClick={() => setMenuOpen(false)}
-                    className={({ isActive }) =>
-                      `candidate-nav-link ${isActive ? "active" : ""}`
-                    }
-                  >
-                    <Icon size={18} strokeWidth={1.9} />
-                    <span>{item.label}</span>
-
-                    {item.path === "/candidate/cv-analysis" && (
-                      <span className="candidate-nav-soon">Bientôt</span>
+          <nav className="candidate-navigation">
+            {navigation.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === "/candidate/dashboard"}
+                  onClick={() => setMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `candidate-nav-link ${
+                      isActive ? "candidate-nav-link-active" : ""
+                    }`
+                  }
+                >
+                  <Icon size={19} />
+                  <span>{item.label}</span>
+                  {item.to === "/candidate/applications" &&
+                    totalApplications > 0 && (
+                      <span className="candidate-nav-count">
+                        {totalApplications}
+                      </span>
                     )}
-                  </NavLink>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
+                </NavLink>
+              );
+            })}
+          </nav>
+        </div>
+
+        <div className="candidate-sidebar-help">
+          <div className="candidate-help-icon">
+            <LifeBuoy size={21} />
+          </div>
+          <strong>Besoin d'aide ?</strong>
+          <p>Notre équipe est là pour vous accompagner.</p>
+          <Link to="/support">
+            Contacter le support <ArrowRight size={15} />
+          </Link>
+        </div>
 
         <div className="candidate-sidebar-bottom">
-          <div className="candidate-sidebar-help">
-            <div className="candidate-help-icon">
-              <LifeBuoy size={19} />
+          <div className="candidate-sidebar-user">
+            <div className="candidate-avatar">
+              {initials(displayName)}
             </div>
-
-            <strong>Besoin d'aide ?</strong>
-
-            <p>
-              Notre équipe est disponible pour vous accompagner.
-            </p>
-
-            <Link to="/support" onClick={() => setMenuOpen(false)}>
-              Contacter le support <ArrowRight size={14} />
-            </Link>
-          </div>
-
-          <button
-            className="candidate-logout-button"
-            type="button"
-            onClick={handleLogout}
-          >
-            <LogOut size={18} />
-            <span>Déconnexion</span>
-          </button>
-
-          <div className="candidate-sidebar-legal">
-            <ShieldCheck size={13} />
-            <span>Plateforme sécurisée</span>
+            <div className="candidate-sidebar-user-info">
+              <strong>{displayName}</strong>
+              <span>Candidat</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="candidate-logout-icon"
+              title="Se déconnecter"
+              aria-label="Se déconnecter"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
         </div>
       </aside>
@@ -522,396 +462,358 @@ export default function CandidateDashboard() {
           <div className="candidate-topbar-left">
             <button
               type="button"
-              className="candidate-mobile-menu"
+              className="candidate-menu-button"
               onClick={() => setMenuOpen(true)}
               aria-label="Ouvrir le menu"
             >
               <Menu size={22} />
             </button>
-
             <div>
-              <span className="candidate-breadcrumb">Mon espace</span>
+              <span className="candidate-breadcrumb">
+                Espace candidat <span>/</span> Tableau de bord
+              </span>
               <h1>Tableau de bord</h1>
             </div>
           </div>
 
           <div className="candidate-topbar-actions">
-            <span className="candidate-secure-label">
-              <span />
-              Espace sécurisé
-            </span>
-
+            <button
+              type="button"
+              className="candidate-icon-button"
+              onClick={() => loadDashboard(true)}
+              title="Actualiser les données"
+              aria-label="Actualiser"
+              disabled={refreshing}
+            >
+              <RefreshCw
+                size={19}
+                className={refreshing ? "candidate-spin" : ""}
+              />
+            </button>
             <Link
-              to="/candidate/notifications"
-              className="candidate-topbar-icon"
-              aria-label="Notifications"
+              to="/notifications"
+              className="candidate-icon-button"
               title="Notifications"
+              aria-label="Notifications"
             >
               <Bell size={19} />
             </Link>
-
             <Link
               to="/candidate/profile"
               className="candidate-topbar-profile"
               title="Mon profil"
             >
-              {avatar ? (
-                <img src={avatar} alt="" />
-              ) : (
-                initials(
-                  profile?.first_name || user?.first_name,
-                  profile?.last_name || user?.last_name,
-                  email
-                )
-              )}
+              <div className="candidate-avatar candidate-avatar-small">
+                {initials(displayName)}
+              </div>
+              <span>{firstName}</span>
             </Link>
           </div>
         </header>
 
         <div className="candidate-content">
           {error && (
-            <div className="candidate-alert" role="alert">
-              <div>
-                <strong>Information</strong>
-                <p>{error}</p>
-              </div>
-
+            <div className="candidate-alert">
+              <AlertCircle size={19} />
+              <span>{error}</span>
               <button
                 type="button"
-                onClick={() => loadDashboard({ silent: true })}
-                disabled={refreshing}
+                onClick={() => loadDashboard(true)}
+                aria-label="Réessayer"
               >
-                <RefreshCw size={15} />
                 Réessayer
               </button>
             </div>
           )}
 
           <section className="candidate-welcome">
-            <div className="candidate-welcome-copy">
-              <span className="candidate-eyebrow">
-                VOTRE ESPACE PROFESSIONNEL
-              </span>
-
-              <h2>Bonjour {firstName || "et bienvenue"} !</h2>
-
+            <div className="candidate-welcome-content">
+              <div className="candidate-welcome-tag">
+                <Sparkles size={15} />
+                <span>Votre espace carrière intelligent</span>
+              </div>
+              <h2>
+                Bonjour {firstName} <span>👋</span>
+              </h2>
               <p>
-                Retrouvez ici vos candidatures, vos opportunités et les
-                informations essentielles pour suivre votre parcours
-                professionnel.
+                Prêt à donner un nouvel élan à votre carrière ?
+                Découvrez les opportunités qui correspondent à votre profil.
               </p>
-
               <div className="candidate-welcome-actions">
                 <Link to="/jobs" className="candidate-primary-button">
-                  <Search size={17} />
-                  Explorer les offres
+                  Explorer les offres <ArrowRight size={17} />
                 </Link>
-
                 <Link
                   to="/candidate/profile"
                   className="candidate-secondary-button"
                 >
-                  Compléter mon profil <ArrowRight size={16} />
+                  Compléter mon profil
                 </Link>
               </div>
             </div>
-
-            <div className="candidate-welcome-aside">
-              <div className="candidate-welcome-aside-icon">
-                <BriefcaseBusiness size={25} />
+            <div className="candidate-welcome-visual" aria-hidden="true">
+              <div className="candidate-visual-circle candidate-circle-one" />
+              <div className="candidate-visual-circle candidate-circle-two" />
+              <div className="candidate-visual-card">
+                <div className="candidate-visual-card-icon">
+                  <TrendingUp size={25} />
+                </div>
+                <strong>Votre avenir commence ici</strong>
+                <span>Des opportunités à portée de main</span>
+                <div className="candidate-visual-progress">
+                  <span />
+                </div>
               </div>
-
-              <span>Votre carrière</span>
-              <strong>Commence ici.</strong>
-              <small>Des opportunités adaptées à votre profil.</small>
+              <div className="candidate-visual-sparkle">
+                <Sparkles size={24} />
+              </div>
             </div>
           </section>
 
-          <section className="candidate-section">
-            <div className="candidate-section-heading">
-              <div>
-                <span className="candidate-section-kicker">
-                  VUE D'ENSEMBLE
-                </span>
-
-                <h2>Suivi de mes activités</h2>
-                <p>Un aperçu de vos démarches sur SunuJob AI.</p>
+          <section className="candidate-stats-grid">
+            <article className="candidate-stat-card">
+              <div className="candidate-stat-top">
+                <div className="candidate-stat-icon candidate-stat-blue">
+                  <FileText size={21} />
+                </div>
+                <span className="candidate-stat-caption">Toutes vos demandes</span>
               </div>
+              <strong className="candidate-stat-number">
+                {totalApplications}
+              </strong>
+              <span className="candidate-stat-label">Candidatures envoyées</span>
+              <Link to="/candidate/applications">
+                Voir mes candidatures <ArrowRight size={14} />
+              </Link>
+            </article>
 
-              <button
-                type="button"
-                className="candidate-refresh-button"
-                onClick={() => loadDashboard({ silent: true })}
-                disabled={refreshing}
-              >
-                <RefreshCw
-                  size={16}
-                  className={refreshing ? "is-spinning" : ""}
-                />
-                Actualiser
-              </button>
-            </div>
-
-            <div className="candidate-stats-grid">
-              <article className="candidate-stat-card">
-                <div className="candidate-stat-top">
-                  <span className="candidate-stat-icon blue">
-                    <FileText size={20} />
-                  </span>
-                  <span className="candidate-stat-caption">Candidatures</span>
+            <article className="candidate-stat-card">
+              <div className="candidate-stat-top">
+                <div className="candidate-stat-icon candidate-stat-orange">
+                  <Clock3 size={21} />
                 </div>
+                <span className="candidate-stat-caption">En traitement</span>
+              </div>
+              <strong className="candidate-stat-number">
+                {pendingApplications}
+              </strong>
+              <span className="candidate-stat-label">En attente ou en examen</span>
+              <Link to="/candidate/applications">
+                Suivre l'évolution <ArrowRight size={14} />
+              </Link>
+            </article>
 
-                <strong className="candidate-stat-number">
-                  {stats.total}
-                </strong>
-
-                <span className="candidate-stat-description">
-                  Total des candidatures envoyées
-                </span>
-              </article>
-
-              <article className="candidate-stat-card">
-                <div className="candidate-stat-top">
-                  <span className="candidate-stat-icon amber">
-                    <Clock3 size={20} />
-                  </span>
-                  <span className="candidate-stat-caption">En traitement</span>
+            <article className="candidate-stat-card">
+              <div className="candidate-stat-top">
+                <div className="candidate-stat-icon candidate-stat-green">
+                  <CalendarDays size={21} />
                 </div>
+                <span className="candidate-stat-caption">Étape suivante</span>
+              </div>
+              <strong className="candidate-stat-number">
+                {interviewApplications}
+              </strong>
+              <span className="candidate-stat-label">Présélections et entretiens</span>
+              <Link to="/candidate/applications">
+                Consulter le suivi <ArrowRight size={14} />
+              </Link>
+            </article>
 
-                <strong className="candidate-stat-number">
-                  {stats.active}
-                </strong>
-
-                <span className="candidate-stat-description">
-                  Dossiers en cours de suivi
-                </span>
-              </article>
-
-              <article className="candidate-stat-card">
-                <div className="candidate-stat-top">
-                  <span className="candidate-stat-icon violet">
-                    <CalendarDays size={20} />
-                  </span>
-                  <span className="candidate-stat-caption">Entretiens</span>
+            <article className="candidate-stat-card">
+              <div className="candidate-stat-top">
+                <div className="candidate-stat-icon candidate-stat-purple">
+                  <Sparkles size={21} />
                 </div>
-
-                <strong className="candidate-stat-number">
-                  {stats.interviews}
-                </strong>
-
-                <span className="candidate-stat-description">
-                  Candidatures avec entretien
-                </span>
-              </article>
-
-              <article className="candidate-stat-card">
-                <div className="candidate-stat-top">
-                  <span className="candidate-stat-icon green">
-                    <CheckCircle2 size={20} />
-                  </span>
-                  <span className="candidate-stat-caption">Acceptées</span>
-                </div>
-
-                <strong className="candidate-stat-number">
-                  {stats.accepted}
-                </strong>
-
-                <span className="candidate-stat-description">
-                  Réponses positives reçues
-                </span>
-              </article>
-            </div>
+                <span className="candidate-stat-caption">Selon votre profil</span>
+              </div>
+              <strong className="candidate-stat-number">
+                {recommendedJobs.length}
+              </strong>
+              <span className="candidate-stat-label">Offres recommandées</span>
+              <Link to="/candidate/recommendations">
+                Découvrir les offres <ArrowRight size={14} />
+              </Link>
+            </article>
           </section>
 
-          <div className="candidate-dashboard-columns">
-            <section className="candidate-panel candidate-profile-panel">
+          <section className="candidate-main-grid">
+            <div className="candidate-panel candidate-profile-panel">
               <div className="candidate-panel-heading">
                 <div>
-                  <span className="candidate-section-kicker">MON PROFIL</span>
-                  <h2>Complétude du profil</h2>
+                  <span className="candidate-eyebrow">VOTRE PROFIL</span>
+                  <h3>Complétez votre profil</h3>
                 </div>
-
-                <Link to="/candidate/profile" aria-label="Modifier mon profil">
-                  <ArrowRight size={18} />
+                <Link to="/candidate/profile" className="candidate-text-link">
+                  Modifier <ArrowRight size={15} />
                 </Link>
               </div>
 
-              <div className="candidate-completion">
+              <div className="candidate-profile-progress-area">
                 <div
-                  className="candidate-progress-ring"
-                  style={{ "--completion": `${completion}%` }}
-                  role="img"
-                  aria-label={`Profil complété à ${completion} pour cent`}
+                  className="candidate-progress-circle"
+                  style={{ "--progress": `${completion}%` }}
                 >
-                  <div>
+                  <div className="candidate-progress-inner">
                     <strong>{completion}%</strong>
-                    <span>complété</span>
+                    <span>Complété</span>
                   </div>
                 </div>
-
-                <div className="candidate-completion-copy">
+                <div className="candidate-progress-message">
                   <strong>
                     {completion >= 80
-                      ? "Votre profil est bien renseigné"
-                      : "Améliorez votre visibilité"}
+                      ? "Excellent travail !"
+                      : "Encore quelques étapes"}
                   </strong>
-
                   <p>
                     Un profil complet aide les recruteurs à mieux comprendre
-                    votre parcours et vos compétences.
+                    vos compétences et votre parcours.
                   </p>
-
                   <Link to="/candidate/profile">
-                    Mettre à jour mon profil <ArrowRight size={15} />
+                    Améliorer mon profil <ArrowRight size={15} />
                   </Link>
                 </div>
               </div>
 
               <div className="candidate-profile-tip">
-                <ShieldCheck size={17} />
+                <ShieldCheck size={18} />
                 <span>
-                  Vos informations sont utilisées pour faciliter le suivi de
-                  vos candidatures.
+                  Vos informations sont utilisées pour améliorer la pertinence
+                  des recommandations.
                 </span>
               </div>
-            </section>
+            </div>
 
-            <section className="candidate-panel candidate-quick-panel">
+            <div className="candidate-panel candidate-quick-panel">
               <div className="candidate-panel-heading">
                 <div>
-                  <span className="candidate-section-kicker">ACCÈS RAPIDE</span>
-                  <h2>Mes outils</h2>
+                  <span className="candidate-eyebrow">ACCÈS RAPIDE</span>
+                  <h3>Que souhaitez-vous faire ?</h3>
                 </div>
-
-                <Settings
-                  size={18}
-                  className="candidate-panel-muted-icon"
-                />
               </div>
 
               <div className="candidate-quick-links">
-                <Link to="/candidate/profile" className="candidate-quick-link">
-                  <span className="candidate-quick-icon blue">
-                    <UserRound size={19} />
-                  </span>
-
-                  <span>
-                    <strong>Mon profil</strong>
-                    <small>Gérer mes informations</small>
-                  </span>
-
-                  <ArrowRight size={17} />
-                </Link>
-
-                <Link to="/candidate/cv" className="candidate-quick-link">
-                  <span className="candidate-quick-icon violet">
-                    <FileText size={19} />
-                  </span>
-
-                  <span>
-                    <strong>Mon CV</strong>
-                    <small>Consulter mes documents</small>
-                  </span>
-
+                <Link to="/jobs" className="candidate-quick-link">
+                  <div className="candidate-quick-icon candidate-quick-blue">
+                    <Search size={20} />
+                  </div>
+                  <div>
+                    <strong>Rechercher un emploi</strong>
+                    <span>Parcourir les nouvelles offres</span>
+                  </div>
                   <ArrowRight size={17} />
                 </Link>
 
                 <Link
-                  to="/candidate/interviews"
+                  to="/candidate/profile"
                   className="candidate-quick-link"
                 >
-                  <span className="candidate-quick-icon green">
-                    <CalendarDays size={19} />
-                  </span>
+                  <div className="candidate-quick-icon candidate-quick-purple">
+                    <UserRound size={20} />
+                  </div>
+                  <div>
+                    <strong>Mettre à jour mon profil</strong>
+                    <span>Valoriser mon parcours</span>
+                  </div>
+                  <ArrowRight size={17} />
+                </Link>
 
-                  <span>
-                    <strong>Mes entretiens</strong>
-                    <small>Suivre mes rendez-vous</small>
-                  </span>
+                <Link
+                  to="/candidate/applications"
+                  className="candidate-quick-link"
+                >
+                  <div className="candidate-quick-icon candidate-quick-green">
+                    <Activity size={20} />
+                  </div>
+                  <div>
+                    <strong>Suivre mes candidatures</strong>
+                    <span>Consulter leur avancement</span>
+                  </div>
+                  <ArrowRight size={17} />
+                </Link>
 
+                <Link
+                  to="/candidate/recommendations"
+                  className="candidate-quick-link"
+                >
+                  <div className="candidate-quick-icon candidate-quick-orange">
+                    <Sparkles size={20} />
+                  </div>
+                  <div>
+                    <strong>Mes recommandations IA</strong>
+                    <span>Découvrir les offres adaptées</span>
+                  </div>
                   <ArrowRight size={17} />
                 </Link>
               </div>
-            </section>
-          </div>
+            </div>
+          </section>
 
-          <section className="candidate-panel candidate-jobs-panel">
+          <section className="candidate-panel candidate-recommendations-panel">
             <div className="candidate-panel-heading">
               <div>
-                <span className="candidate-section-kicker">
-                  OPPORTUNITÉS
-                </span>
-
-                <h2>Offres recommandées</h2>
-
+                <span className="candidate-eyebrow">INTELLIGENCE ARTIFICIELLE</span>
+                <h3>
+                  <Sparkles size={20} /> Offres recommandées pour vous
+                </h3>
                 <p>
-                  Des offres à découvrir selon les informations disponibles.
+                  Des opportunités sélectionnées selon votre profil et vos compétences.
                 </p>
               </div>
-
               <Link
                 to="/candidate/recommendations"
-                className="candidate-view-all"
+                className="candidate-text-link"
               >
-                Voir toutes les recommandations <ArrowRight size={16} />
+                Tout voir <ArrowRight size={15} />
               </Link>
             </div>
 
             {recommendedJobs.length > 0 ? (
-              <div className="candidate-recommended-list">
-                {recommendedJobs.slice(0, 4).map((job, index) => {
-                  const jobId = job.id || job.pk;
+              <div className="candidate-recommendations-grid">
+                {recommendedJobs.slice(0, 3).map((item, index) => {
+                  const job = item?.job || item;
+                  const jobId = job?.id || item?.job_id;
+                  const score =
+                    item?.score ??
+                    item?.match_score ??
+                    item?.compatibility_score;
 
                   return (
                     <article
-                      className="candidate-recommended-item"
-                      key={
-                        jobId ||
-                        `${getRecommendedJobTitle(job)}-${index}`
-                      }
+                      className="candidate-job-card"
+                      key={jobId || `recommended-${index}`}
                     >
-                      <div className="candidate-company-icon">
-                        <Building2 size={21} />
-                      </div>
-
-                      <div className="candidate-job-main">
-                        {jobId ? (
-                          <Link
-                            to={`/jobs/${jobId}`}
-                            className="candidate-job-title"
-                          >
-                            {getRecommendedJobTitle(job)}
-                          </Link>
-                        ) : (
-                          <strong className="candidate-job-title">
-                            {getRecommendedJobTitle(job)}
-                          </strong>
-                        )}
-
-                        <span className="candidate-job-company">
-                          {getRecommendedCompany(job)}
-                        </span>
-
-                        <span className="candidate-job-location">
-                          <MapPin size={14} />
-                          {getRecommendedLocation(job)}
-                        </span>
-                      </div>
-
-                      <div className="candidate-job-meta">
-                        {job?.employment_type && (
-                          <span className="candidate-job-type">
-                            {job.employment_type}
+                      <div className="candidate-job-card-top">
+                        <div className="candidate-company-icon">
+                          <Building2 size={22} />
+                        </div>
+                        {score !== undefined && score !== null && (
+                          <span className="candidate-match-badge">
+                            <Sparkles size={13} />
+                            {Math.round(Number(score))}% compatible
                           </span>
                         )}
-
-                        {jobId && (
-                          <Link
-                            to={`/jobs/${jobId}`}
-                            className="candidate-job-open"
-                            aria-label={`Consulter ${getRecommendedJobTitle(job)}`}
-                          >
-                            <ArrowRight size={18} />
+                      </div>
+                      <h4>{getRecommendedJobTitle(item)}</h4>
+                      <span className="candidate-job-company">
+                        {getRecommendedCompany(item)}
+                      </span>
+                      <div className="candidate-job-location">
+                        <MapPin size={15} />
+                        {getRecommendedLocation(item)}
+                      </div>
+                      <div className="candidate-job-card-footer">
+                        <span>
+                          {job?.contract_type ||
+                            job?.employment_type ||
+                            "Opportunité"}
+                        </span>
+                        {jobId ? (
+                          <Link to={`/jobs/${jobId}`} aria-label="Voir l'offre">
+                            Voir l'offre <ArrowRight size={15} />
+                          </Link>
+                        ) : (
+                          <Link to="/jobs">
+                            Explorer <ArrowRight size={15} />
                           </Link>
                         )}
                       </div>
@@ -921,19 +823,16 @@ export default function CandidateDashboard() {
               </div>
             ) : (
               <div className="candidate-empty-state">
-                <span>
-                  <BriefcaseBusiness size={24} />
-                </span>
-
-                <strong>Aucune recommandation disponible</strong>
-
+                <div className="candidate-empty-icon">
+                  <Sparkles size={25} />
+                </div>
+                <strong>Aucune recommandation disponible pour le moment</strong>
                 <p>
-                  Consultez les offres publiées et pensez à compléter votre
-                  profil pour améliorer les recommandations.
+                  Complétez votre profil pour recevoir des offres mieux adaptées
+                  à votre parcours.
                 </p>
-
-                <Link to="/jobs" className="candidate-primary-button">
-                  Consulter les offres <ArrowRight size={16} />
+                <Link to="/candidate/profile" className="candidate-primary-button">
+                  Compléter mon profil <ArrowRight size={16} />
                 </Link>
               </div>
             )}
@@ -942,27 +841,20 @@ export default function CandidateDashboard() {
           <section className="candidate-panel candidate-applications-panel">
             <div className="candidate-panel-heading">
               <div>
-                <span className="candidate-section-kicker">
-                  MES DÉMARCHES
-                </span>
-
-                <h2>Dernières candidatures</h2>
-
-                <p>
-                  Suivez l'évolution de vos candidatures récentes.
-                </p>
+                <span className="candidate-eyebrow">SUIVI DE VOS DEMANDES</span>
+                <h3>Mes dernières candidatures</h3>
+                <p>Retrouvez ici les dernières offres auxquelles vous avez postulé.</p>
               </div>
-
               <Link
                 to="/candidate/applications"
-                className="candidate-view-all"
+                className="candidate-text-link"
               >
-                Toutes mes candidatures <ArrowRight size={16} />
+                Toutes mes candidatures <ArrowRight size={15} />
               </Link>
             </div>
 
             {applications.length > 0 ? (
-              <div className="candidate-table-wrap">
+              <div className="candidate-table-wrapper">
                 <table className="candidate-applications-table">
                   <thead>
                     <tr>
@@ -970,52 +862,47 @@ export default function CandidateDashboard() {
                       <th>Entreprise</th>
                       <th>Date d'envoi</th>
                       <th>Statut</th>
-                      <th aria-label="Détails" />
+                      <th>Action</th>
                     </tr>
                   </thead>
-
                   <tbody>
                     {applications.slice(0, 5).map((application, index) => {
-                      const status = getStatus(application.status);
+                      const status = getStatus(application);
+                      const applicationId = application?.id;
 
                       return (
-                        <tr
-                          key={
-                            application.id ||
-                            application.pk ||
-                            `application-${index}`
-                          }
-                        >
+                        <tr key={applicationId || `application-${index}`}>
                           <td>
-                            <strong>{getJobTitle(application)}</strong>
+                            <div className="candidate-table-job">
+                              <div className="candidate-table-job-icon">
+                                <BriefcaseBusiness size={17} />
+                              </div>
+                              <strong>{getJobTitle(application)}</strong>
+                            </div>
                           </td>
-
                           <td>{getCompanyName(application)}</td>
-
                           <td>
                             {formatDate(
-                              application.created_at ||
-                                application.applied_at ||
-                                application.date_applied
+                              application?.created_at ||
+                                application?.applied_at ||
+                                application?.date
                             )}
                           </td>
-
                           <td>
                             <span
-                              className={`candidate-status-badge ${status.className}`}
+                              className={`candidate-status candidate-status-${status.className}`}
                             >
                               <span />
                               {status.label}
                             </span>
                           </td>
-
                           <td>
                             <Link
                               to="/candidate/applications"
                               className="candidate-table-action"
-                              aria-label="Voir mes candidatures"
+                              aria-label="Voir la candidature"
                             >
-                              <ArrowRight size={17} />
+                              <ExternalLink size={17} />
                             </Link>
                           </td>
                         </tr>
@@ -1025,31 +912,34 @@ export default function CandidateDashboard() {
                 </table>
               </div>
             ) : (
-              <div className="candidate-empty-state compact">
-                <span>
-                  <FileText size={23} />
-                </span>
-
-                <strong>Vous n'avez pas encore de candidature</strong>
-
+              <div className="candidate-empty-state candidate-empty-applications">
+                <div className="candidate-empty-icon">
+                  <FileText size={25} />
+                </div>
+                <strong>Vous n'avez pas encore envoyé de candidature</strong>
                 <p>
-                  Parcourez les offres disponibles et envoyez votre première
-                  candidature depuis SunuJob AI.
+                  Explorez les offres publiées et envoyez votre première candidature.
                 </p>
-
                 <Link to="/jobs" className="candidate-primary-button">
-                  Trouver un emploi <ArrowRight size={16} />
+                  Découvrir les offres <ArrowRight size={16} />
                 </Link>
               </div>
             )}
           </section>
 
-          <footer className="candidate-dashboard-footer">
-            <span>© {new Date().getFullYear()} SunuJob AI</span>
-            <span>
-              La plateforme de recrutement pensée pour le Sénégal.
+          <footer className="candidate-footer">
+            <div>
+              <strong>SunuJob AI</strong>
+              <span>Conçu au Sénégal 🇸🇳 pour accompagner les talents.</span>
+            </div>
+            <div className="candidate-footer-links">
+              <Link to="/support">Assistance</Link>
+              <Link to="/jobs">Offres d'emploi</Link>
+              <Link to="/candidate/profile">Mon profil</Link>
+            </div>
+            <span className="candidate-copyright">
+              © {new Date().getFullYear()} SunuJob AI
             </span>
-            <Link to="/support">Assistance</Link>
           </footer>
         </div>
       </main>
