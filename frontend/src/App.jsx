@@ -1,3 +1,4 @@
+
 import React, { Component } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 
@@ -113,6 +114,7 @@ class AppErrorBoundary extends Component {
               color: "#9b1c1c",
               whiteSpace: "pre-wrap",
               overflowWrap: "anywhere",
+              borderRadius: "8px",
             }}
           >
             {this.state.message}
@@ -133,25 +135,26 @@ class AppErrorBoundary extends Component {
 }
 
 // =====================================================
-// ROUTES
+// ROUTES DE L'APPLICATION
 // =====================================================
 
 function AppRoutes() {
   const location = useLocation();
 
+  // Identification des espaces
   const isRecruiterPage =
     location.pathname.startsWith("/recruiter");
 
   const isAdminPage =
     location.pathname.startsWith("/admin");
 
-  // CORRECTION IMPORTANTE :
-  // Suppression des slashs finaux sans expression invalide.
+  // Suppression correcte des slashs finaux
   const normalizedPath = location.pathname.replace(/\/+$/, "");
 
   const isCandidateDashboardPage =
     normalizedPath === "/candidate/dashboard";
 
+  // Les espaces privés ont leur propre navigation
   const showPublicLayout =
     !isRecruiterPage &&
     !isAdminPage &&
@@ -159,12 +162,16 @@ function AppRoutes() {
 
   return (
     <>
+      {/* Navigation publique */}
       {showPublicLayout && <Navbar />}
 
+      {/* Navigation administrateur */}
       {isAdminPage && <AdminNavigation />}
 
       <Routes>
-        {/* PAGES PUBLIQUES */}
+        {/* =========================
+            PAGES PUBLIQUES
+        ========================= */}
 
         <Route path="/" element={<Home />} />
 
@@ -181,7 +188,9 @@ function AppRoutes() {
           element={<NotificationsPage />}
         />
 
-        {/* ESPACE CANDIDAT */}
+        {/* =========================
+            ESPACE CANDIDAT
+        ========================= */}
 
         <Route
           element={
@@ -259,7 +268,9 @@ function AppRoutes() {
           />
         </Route>
 
-        {/* ESPACE RECRUTEUR */}
+        {/* =========================
+            ESPACE RECRUTEUR
+        ========================= */}
 
         <Route
           element={
@@ -312,7 +323,9 @@ function AppRoutes() {
           />
         </Route>
 
-        {/* ORGANISME DE FORMATION */}
+        {/* =========================
+            ORGANISME DE FORMATION
+        ========================= */}
 
         <Route
           element={
@@ -329,7 +342,9 @@ function AppRoutes() {
           />
         </Route>
 
-        {/* CENTRE DE SUPPORT */}
+        {/* =========================
+            CENTRE DE SUPPORT
+        ========================= */}
 
         <Route
           element={
@@ -344,7 +359,9 @@ function AppRoutes() {
           />
         </Route>
 
-        {/* ADMINISTRATEUR */}
+        {/* =========================
+            ESPACE ADMINISTRATEUR
+        ========================= */}
 
         <Route
           element={
@@ -417,7 +434,9 @@ function AppRoutes() {
           />
         </Route>
 
-        {/* PAGE INCONNUE */}
+        {/* =========================
+            PAGE INCONNUE
+        ========================= */}
 
         <Route
           path="*"
@@ -425,6 +444,7 @@ function AppRoutes() {
         />
       </Routes>
 
+      {/* Pied de page public */}
       {showPublicLayout && <Footer />}
     </>
   );
