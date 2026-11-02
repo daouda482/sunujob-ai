@@ -1534,3 +1534,159 @@
     flex-direction: column;
   }
 }
+
+/* =========================================================
+   CORRECTIONS ET AMÉLIORATIONS COMPLÉMENTAIRES
+   ========================================================= */
+
+/* Évite les débordements horizontaux */
+.candidate-dashboard {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.candidate-main,
+.candidate-content,
+.candidate-panel {
+  min-width: 0;
+}
+
+/* Liens et boutons */
+.candidate-dashboard button,
+.candidate-dashboard a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.candidate-dashboard button:focus-visible,
+.candidate-dashboard a:focus-visible {
+  outline: 3px solid rgba(40, 120, 208, 0.35);
+  outline-offset: 3px;
+}
+
+/* Images de profil */
+.candidate-avatar img,
+.candidate-topbar-profile img {
+  display: block;
+  border-radius: 50%;
+}
+
+/* Protection des textes longs */
+.candidate-sidebar-user-info,
+.candidate-job-main,
+.candidate-completion-copy {
+  overflow-wrap: anywhere;
+}
+
+/* Panneaux et tableaux */
+.candidate-panel {
+  overflow: hidden;
+}
+
+.candidate-table-wrap {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Boutons */
+.candidate-primary-button,
+.candidate-secondary-button,
+.candidate-refresh-button,
+.candidate-alert button {
+  cursor: pointer;
+}
+
+.candidate-primary-button:disabled,
+.candidate-secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Animation discrète */
+.candidate-stat-card,
+.candidate-panel,
+.candidate-welcome {
+  animation: candidate-appear 0.35s ease both;
+}
+
+@keyframes candidate-appear {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Écrans de petite hauteur */
+@media (max-height: 720px) and (min-width: 901px) {
+  .candidate-sidebar {
+    padding-top: 17px;
+    padding-bottom: 12px;
+  }
+
+  .candidate-sidebar-user {
+    margin-top: 17px;
+    margin-bottom: 17px;
+  }
+
+  .candidate-navigation {
+    gap: 13px;
+  }
+}
+
+/* Téléphones */
+@media (max-width: 650px) {
+  .candidate-topbar-left {
+    min-width: 0;
+  }
+
+  .candidate-topbar-left > div {
+    min-width: 0;
+  }
+
+  .candidate-topbar h1 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .candidate-topbar-profile,
+  .candidate-topbar-icon {
+    flex: 0 0 35px;
+    width: 35px;
+    height: 35px;
+  }
+
+  .candidate-recommended-item {
+    min-width: 0;
+  }
+
+  .candidate-job-main {
+    flex: 1;
+  }
+
+  .candidate-progress-ring {
+    width: 100px;
+    height: 100px;
+    flex-basis: 100px;
+  }
+
+  .candidate-progress-ring > div {
+    width: 81px;
+    height: 81px;
+  }
+}
+
+/* Réduction des animations selon les préférences système */
+@media (prefers-reduced-motion: reduce) {
+  .candidate-dashboard *,
+  .candidate-dashboard *::before,
+  .candidate-dashboard *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

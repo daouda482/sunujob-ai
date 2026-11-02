@@ -23,7 +23,7 @@ import ComingSoon from "./pages/ComingSoon.jsx";
 // PAGES CANDIDAT
 // =====================================================
 
-import CandidateDashboard from "./pages/CandidateDashboard.jsx";
+import CandidateDashboard from "./pages/candidate/CandidateDashboard.jsx";
 import CandidateProfile from "./pages/CandidateProfile.jsx";
 import Applications from "./pages/candidate/Applications.jsx";
 import ApplicationSuccess from "./pages/ApplicationSuccess.jsx";
