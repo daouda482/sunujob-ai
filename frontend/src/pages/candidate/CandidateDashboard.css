@@ -1638,3 +1638,297 @@
     transition-duration: .01ms !important;
   }
 }
+
+
+/* =========================================================
+   MENU CANDIDAT — NAVIGATION ORGANISÉE EN GROUPES
+========================================================= */
+
+.candidate-sidebar-section {
+  padding-top: 25px;
+  padding-bottom: 10px;
+}
+
+.candidate-navigation-group {
+  margin-bottom: 25px;
+}
+
+.candidate-navigation-group:last-child {
+  margin-bottom: 10px;
+}
+
+.candidate-navigation-group .candidate-sidebar-label {
+  display: block;
+  padding: 0 11px;
+  margin-bottom: 12px;
+  color: #7185a6;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+
+.candidate-navigation-group .candidate-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Liens du menu */
+
+.candidate-navigation-group .candidate-nav-link {
+  display: flex;
+  width: 100%;
+  min-height: 45px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  color: #b8c5da;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .2s ease, color .2s ease;
+}
+
+.candidate-navigation-group .candidate-nav-link:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, .08);
+}
+
+.candidate-navigation-group .candidate-nav-link-active {
+  color: #ffffff;
+  background: linear-gradient(100deg, #2468d8, #1b55b5);
+  box-shadow: 0 6px 16px rgba(16, 75, 173, .25);
+}
+
+.candidate-navigation-group .candidate-nav-link svg {
+  flex-shrink: 0;
+}
+
+.candidate-navigation-group .candidate-nav-link span:nth-child(2) {
+  flex: 1;
+}
+
+/* Compteur des candidatures */
+
+.candidate-navigation-group .candidate-nav-count {
+  display: flex;
+  min-width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  color: #ffffff;
+  background: rgba(255, 255, 255, .17);
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+/* Bouton Déconnexion dans le menu */
+
+.candidate-logout-menu {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  margin-top: 12px;
+  color: #fca5a5;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+  transition: .2s ease;
+}
+
+.candidate-logout-menu:hover {
+  color: #ffffff;
+  background: rgba(239, 68, 68, .16);
+  border-color: rgba(239, 68, 68, .2);
+}
+
+.candidate-logout-menu svg {
+  flex-shrink: 0;
+}
+
+/* Sidebar : défilement si le menu est long */
+
+.candidate-sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, .2) transparent;
+}
+
+.candidate-sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.candidate-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, .2);
+  border-radius: 10px;
+}
+
+/* Adaptation mobile */
+
+@media (max-width: 768px) {
+  .candidate-navigation-group {
+    margin-bottom: 20px;
+  }
+
+  .candidate-navigation-group .candidate-nav-link {
+    min-height: 47px;
+    font-size: 13px;
+  }
+}
+
+
+/* =========================================================
+   MENU CANDIDAT — NAVIGATION ORGANISÉE EN GROUPES
+========================================================= */
+
+.candidate-sidebar-section {
+  padding-top: 25px;
+  padding-bottom: 10px;
+}
+
+.candidate-navigation-group {
+  margin-bottom: 25px;
+}
+
+.candidate-navigation-group:last-child {
+  margin-bottom: 10px;
+}
+
+.candidate-navigation-group .candidate-sidebar-label {
+  display: block;
+  padding: 0 11px;
+  margin-bottom: 12px;
+  color: #7185a6;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+
+.candidate-navigation-group .candidate-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.candidate-navigation-group .candidate-nav-link {
+  display: flex;
+  width: 100%;
+  min-height: 45px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  color: #b8c5da;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .2s ease, color .2s ease;
+}
+
+.candidate-navigation-group .candidate-nav-link:hover {
+  color: #ffffff;
+  background: rgba(255,255,255,.08);
+}
+
+.candidate-navigation-group .candidate-nav-link-active {
+  color: #ffffff;
+  background: linear-gradient(100deg,#2468d8,#1b55b5);
+  box-shadow: 0 6px 16px rgba(16,75,173,.25);
+}
+
+.candidate-navigation-group .candidate-nav-link svg {
+  flex-shrink: 0;
+}
+
+.candidate-navigation-group .candidate-nav-link span:nth-child(2) {
+  flex: 1;
+}
+
+.candidate-navigation-group .candidate-nav-count {
+  display: flex;
+  min-width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  color: #ffffff;
+  background: rgba(255,255,255,.17);
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.candidate-logout-menu {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  margin-top: 12px;
+  color: #fca5a5;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+  transition: .2s ease;
+}
+
+.candidate-logout-menu:hover {
+  color: #ffffff;
+  background: rgba(239,68,68,.16);
+  border-color: rgba(239,68,68,.2);
+}
+
+.candidate-logout-menu svg {
+  flex-shrink: 0;
+}
+
+.candidate-sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.2) transparent;
+}
+
+.candidate-sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.candidate-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.2);
+  border-radius: 10px;
+}
+
+@media (max-width: 768px) {
+  .candidate-navigation-group {
+    margin-bottom: 20px;
+  }
+
+  .candidate-navigation-group .candidate-nav-link {
+    min-height: 47px;
+    font-size: 13px;
+  }
+}

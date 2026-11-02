@@ -1,51 +1,64 @@
 
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Search,
+  MapPin,
+  BriefcaseBusiness,
+  Building2,
+  FileText,
+  Users,
+  ArrowRight,
+  CheckCircle2,
+  UserRound,
+  ClipboardList,
+  BrainCircuit,
+  GraduationCap,
+  ShieldCheck,
+  ChevronRight,
+} from "lucide-react";
 import api from "../api/axios";
 import "./Home.css";
 
 const features = [
   {
-    icon: "✦",
-    title: "Matching intelligent par IA",
+    icon: BrainCircuit,
+    title: "Matching intelligent",
     description:
-      "Découvrez des offres adaptées à vos compétences, votre expérience et vos objectifs professionnels.",
-    color: "blue",
+      "Identifiez les opportunités correspondant à vos compétences, votre expérience et vos objectifs.",
   },
   {
-    icon: "◈",
-    title: "Candidatures centralisées",
+    icon: ClipboardList,
+    title: "Suivi des candidatures",
     description:
-      "Retrouvez vos candidatures au même endroit et suivez leur évolution plus facilement.",
-    color: "purple",
+      "Centralisez vos démarches et consultez l'évolution de vos candidatures depuis votre espace.",
   },
   {
-    icon: "↗",
-    title: "Un profil qui vous valorise",
+    icon: UserRound,
+    title: "Profil professionnel",
     description:
-      "Présentez vos compétences, votre parcours et vos ambitions pour mieux vous faire connaître.",
-    color: "green",
+      "Mettez en valeur votre parcours, vos qualifications et vos compétences auprès des recruteurs.",
   },
 ];
 
 const steps = [
   {
     number: "01",
-    title: "Créez votre profil",
+    title: "Créez votre compte",
     description:
-      "Renseignez vos compétences, votre formation et vos expériences professionnelles.",
+      "Inscrivez-vous et complétez votre profil avec vos informations professionnelles.",
   },
   {
     number: "02",
-    title: "Découvrez les opportunités",
+    title: "Trouvez une opportunité",
     description:
-      "Explorez les offres et identifiez celles qui correspondent à votre profil.",
+      "Consultez les offres publiées et identifiez celles qui correspondent à votre parcours.",
   },
   {
     number: "03",
-    title: "Suivez vos candidatures",
+    title: "Postulez et suivez",
     description:
-      "Postulez et retrouvez les informations disponibles sur l'avancement de vos démarches.",
+      "Envoyez votre candidature et suivez son évolution depuis votre espace personnel.",
   },
 ];
 
@@ -55,21 +68,30 @@ function formatSalary(job) {
   if (job.salary_min != null || job.salary_max != null) {
     const min = job.salary_min;
     const max = job.salary_max;
+    const format = (value) => Number(value).toLocaleString("fr-FR");
 
     if (min != null && max != null) {
-      return `${Number(min).toLocaleString("fr-FR")} – ${Number(
-        max
-      ).toLocaleString("fr-FR")} FCFA`;
+      return `${format(min)} – ${format(max)} FCFA`;
     }
 
-    const value = min ?? max;
-    return `${Number(value).toLocaleString("fr-FR")} FCFA`;
+    return `${format(min ?? max)} FCFA`;
   }
 
   return "Rémunération à préciser";
 }
 
+function getCompanyName(job) {
+  return (
+    job.company_name ||
+    job.company?.name ||
+    job.recruiter_company?.name ||
+    "Entreprise recruteuse"
+  );
+}
+
 export default function Home() {
+  const navigate = useNavigate();
+
   const [jobs, setJobs] = useState([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [search, setSearch] = useState("");
@@ -86,18 +108,17 @@ export default function Home() {
         const list = Array.isArray(data)
           ? data
           : Array.isArray(data?.results)
-          ? data.results
-          : Array.isArray(data?.jobs)
-          ? data.jobs
-          : [];
+            ? data.results
+            : Array.isArray(data?.jobs)
+              ? data.jobs
+              : [];
 
         if (active) setJobs(list.slice(0, 3));
       } catch (error) {
         console.warn(
-          "Impossible de charger les offres sur la page d'accueil :",
+          "Impossible de charger les offres :",
           error.response?.status || error.message
         );
-
         if (active) setJobs([]);
       } finally {
         if (active) setLoadingJobs(false);
@@ -115,109 +136,122 @@ export default function Home() {
     event.preventDefault();
 
     const params = new URLSearchParams();
-
     if (search.trim()) params.set("search", search.trim());
     if (location.trim()) params.set("location", location.trim());
 
     const query = params.toString();
-    window.location.href = query ? `/jobs?${query}` : "/jobs";
+    navigate(query ? `/jobs?${query}` : "/jobs");
   }
 
   return (
     <main className="home-page">
-      {/* HERO */}
       <section className="home-hero">
-        <div className="home-hero-content">
-          <span className="home-eyebrow">
-            <span className="home-eyebrow-dot" />
-            LA NOUVELLE GÉNÉRATION DU RECRUTEMENT
-          </span>
-
-          <h1>
-            Le talent est en vous.
-            <br />
-            <span>Votre avenir commence ici.</span>
-          </h1>
-
-          <p className="home-hero-description">
-            Trouvez les opportunités qui vous correspondent, valorisez
-            vos compétences et faites avancer votre carrière avec
-            SunuJob AI, votre plateforme intelligente de recrutement.
-          </p>
-
-          <div className="home-hero-actions">
-            <Link to="/jobs" className="home-button home-button-primary">
-              Explorer les offres <span aria-hidden="true">→</span>
-            </Link>
-
-            <Link to="/register" className="home-button home-button-secondary">
-              Créer mon compte
-            </Link>
-          </div>
-
-          <div className="home-trust-line">
-            <span className="home-trust-icon">✓</span>
-            Un espace unique pour vos opportunités professionnelles
-          </div>
-        </div>
-
-        <div className="home-hero-visual" aria-hidden="true">
-          <div className="home-orbit home-orbit-one" />
-          <div className="home-orbit home-orbit-two" />
-
-          <div className="home-hero-symbol">
-            <span className="home-symbol-star">✦</span>
-            <div className="home-symbol-core">
-              <span>S</span>
-              <span>AI</span>
+        <div className="home-hero-inner">
+          <div className="home-hero-content">
+            <div className="home-eyebrow">
+              <span className="home-eyebrow-line" />
+              LA PLATEFORME DE RECRUTEMENT AU SÉNÉGAL
             </div>
-            <span className="home-symbol-spark">✧</span>
-          </div>
 
-          <div className="home-floating-card home-floating-match">
-            <span className="home-floating-icon">✦</span>
-            <div>
-              <strong>Matching intelligent</strong>
-              <small>Des opportunités adaptées à votre profil</small>
+            <h1>
+              Les bonnes opportunités.
+              <span> Les bons talents.</span>
+            </h1>
+
+            <p className="home-hero-description">
+              SunuJob AI facilite la rencontre entre les candidats et les
+              recruteurs. Trouvez un emploi, valorisez vos compétences et
+              gérez vos recrutements depuis une seule plateforme.
+            </p>
+
+            <div className="home-hero-actions">
+              <Link to="/jobs" className="home-button home-button-primary">
+                Consulter les offres <ArrowRight size={17} />
+              </Link>
+              <Link to="/register" className="home-button home-button-outline">
+                Créer un compte
+              </Link>
+            </div>
+
+            <div className="home-trust-line">
+              <ShieldCheck size={17} />
+              Une plateforme dédiée aux parcours professionnels
             </div>
           </div>
 
-          <div className="home-floating-card home-floating-career">
-            <span className="home-career-icon">↗</span>
-            <div>
-              <strong>Votre carrière</strong>
-              <small>De nouvelles perspectives vous attendent</small>
+          <div className="home-hero-panel">
+            <div className="home-panel-header">
+              <div>
+                <span className="home-panel-overline">SUNUJOB AI</span>
+                <h2>Votre espace carrière</h2>
+              </div>
+              <BriefcaseBusiness size={23} />
+            </div>
+
+            <div className="home-panel-divider" />
+
+            <div className="home-panel-item">
+              <span className="home-panel-icon">
+                <Search size={19} />
+              </span>
+              <div>
+                <strong>Recherche d'emploi</strong>
+                <small>Explorez les offres publiées</small>
+              </div>
+              <ChevronRight size={17} />
+            </div>
+
+            <div className="home-panel-item">
+              <span className="home-panel-icon">
+                <FileText size={19} />
+              </span>
+              <div>
+                <strong>Profil et CV</strong>
+                <small>Présentez votre expérience</small>
+              </div>
+              <ChevronRight size={17} />
+            </div>
+
+            <div className="home-panel-item">
+              <span className="home-panel-icon">
+                <ClipboardList size={19} />
+              </span>
+              <div>
+                <strong>Candidatures</strong>
+                <small>Suivez vos démarches</small>
+              </div>
+              <ChevronRight size={17} />
+            </div>
+
+            <div className="home-panel-footer">
+              <CheckCircle2 size={16} />
+              Un parcours professionnel mieux organisé
             </div>
           </div>
-
-          <div className="home-hero-decoration home-decoration-one" />
-          <div className="home-hero-decoration home-decoration-two" />
         </div>
 
         <div className="home-hero-bottom">
-          <span>Recrutement</span>
-          <span className="home-bottom-separator">•</span>
-          <span>Intelligence artificielle</span>
-          <span className="home-bottom-separator">•</span>
-          <span>Opportunités professionnelles</span>
+          <span>EMPLOI</span>
+          <span>RECRUTEMENT</span>
+          <span>GESTION DES CANDIDATURES</span>
+          <span>INTELLIGENCE ARTIFICIELLE</span>
         </div>
       </section>
 
-      {/* RECHERCHE */}
       <section className="home-search-section">
         <div className="home-search-heading">
           <div>
-            <span className="home-section-kicker">VOTRE PROCHAINE ÉTAPE</span>
-            <h2>Quel emploi recherchez-vous ?</h2>
-            <p>Commencez par une compétence, un métier ou une ville.</p>
+            <span className="home-section-kicker">RECHERCHE D'OPPORTUNITÉS</span>
+            <h2>Trouvez votre prochain emploi</h2>
+            <p>Recherchez par métier, compétence ou localisation.</p>
           </div>
         </div>
 
         <form className="home-search-form" onSubmit={handleSearch}>
           <label className="home-search-field">
-            <span className="home-search-field-icon">⌕</span>
+            <Search size={20} />
             <span className="home-search-input-wrap">
-              <span>Poste ou mot-clé</span>
+              <span>Poste, métier ou mot-clé</span>
               <input
                 type="search"
                 value={search}
@@ -228,7 +262,7 @@ export default function Home() {
           </label>
 
           <label className="home-search-field">
-            <span className="home-search-field-icon">⌖</span>
+            <MapPin size={20} />
             <span className="home-search-input-wrap">
               <span>Localisation</span>
               <input
@@ -241,52 +275,50 @@ export default function Home() {
           </label>
 
           <button className="home-button home-button-primary" type="submit">
-            Rechercher <span aria-hidden="true">→</span>
+            Rechercher <Search size={17} />
           </button>
         </form>
       </section>
 
-      {/* FONCTIONNALITÉS */}
       <section className="home-section home-features-section">
         <div className="home-section-heading">
-          <span className="home-section-kicker">UNE EXPÉRIENCE PLUS INTELLIGENTE</span>
-          <h2>Le recrutement, autrement.</h2>
+          <span className="home-section-kicker">UNE PLATEFORME, PLUSIEURS SERVICES</span>
+          <h2>Des outils pour chaque étape du recrutement</h2>
           <p>
-            Des outils conçus pour simplifier votre recherche d'emploi
-            et améliorer votre expérience de recrutement.
+            Des fonctionnalités pensées pour simplifier les démarches des
+            candidats et accompagner le travail des recruteurs.
           </p>
         </div>
 
         <div className="home-features-grid">
-          {features.map((feature) => (
-            <article
-              className={`home-feature-card home-feature-${feature.color}`}
-              key={feature.title}
-            >
-              <div className="home-feature-icon">{feature.icon}</div>
-              <h3>{feature.title}</h3>
-              <p>{feature.description}</p>
-              <Link to="/register" className="home-feature-link">
-                Découvrir <span aria-hidden="true">→</span>
-              </Link>
-            </article>
-          ))}
+          {features.map((feature) => {
+            const Icon = feature.icon;
+
+            return (
+              <article className="home-feature-card" key={feature.title}>
+                <div className="home-feature-icon">
+                  <Icon size={23} strokeWidth={1.8} />
+                </div>
+                <h3>{feature.title}</h3>
+                <p>{feature.description}</p>
+                <Link to="/register" className="home-feature-link">
+                  En savoir plus <ArrowRight size={16} />
+                </Link>
+              </article>
+            );
+          })}
         </div>
       </section>
 
-      {/* OFFRES D'EMPLOI */}
       <section className="home-jobs-section">
         <div className="home-section-heading home-jobs-heading">
           <div>
-            <span className="home-section-kicker">LES OPPORTUNITÉS</span>
-            <h2>Des offres à découvrir</h2>
-            <p>
-              Explorez les opportunités publiées sur SunuJob AI.
-            </p>
+            <span className="home-section-kicker">OPPORTUNITÉS PROFESSIONNELLES</span>
+            <h2>Offres d'emploi récentes</h2>
+            <p>Découvrez les dernières opportunités publiées sur la plateforme.</p>
           </div>
-
           <Link to="/jobs" className="home-text-link">
-            Toutes les offres <span aria-hidden="true">→</span>
+            Toutes les offres <ArrowRight size={16} />
           </Link>
         </div>
 
@@ -296,65 +328,53 @@ export default function Home() {
           </div>
         ) : jobs.length > 0 ? (
           <div className="home-jobs-grid">
-            {jobs.map((job, index) => (
-              <article className="home-job-card" key={job.id ?? index}>
+            {jobs.map((job) => (
+              <article className="home-job-card" key={job.id}>
                 <div className="home-job-card-top">
-                  <div className={`home-job-logo home-job-logo-${index % 3}`}>
-                    {(job.company_name ||
-                      job.company?.name ||
-                      "E")[0].toUpperCase()}
+                  <div className="home-job-company-icon">
+                    <Building2 size={22} />
                   </div>
-
                   <span className="home-job-badge">
                     {job.job_type || job.contract_type || "Opportunité"}
                   </span>
                 </div>
 
                 <h3>{job.title || "Offre d'emploi"}</h3>
-
-                <p className="home-job-company">
-                  {job.company_name ||
-                    job.company?.name ||
-                    "Entreprise recruteuse"}
-                </p>
+                <p className="home-job-company">{getCompanyName(job)}</p>
 
                 <div className="home-job-meta">
-                  <span>⌖ {job.location || job.city || "Lieu à préciser"}</span>
-                  <span>◷ {formatSalary(job)}</span>
+                  <span><MapPin size={15} /> {job.location || job.city || "Lieu à préciser"}</span>
+                  <span><BriefcaseBusiness size={15} /> {formatSalary(job)}</span>
                 </div>
 
-                <Link
-                  to={`/jobs/${job.id}`}
-                  className="home-job-link"
-                >
-                  Voir l'offre <span aria-hidden="true">→</span>
+                <Link to={`/jobs/${job.id}`} className="home-job-link">
+                  Consulter l'offre <ArrowRight size={16} />
                 </Link>
               </article>
             ))}
           </div>
         ) : (
           <div className="home-jobs-empty">
-            <div className="home-empty-icon">⌕</div>
-            <h3>Vos prochaines opportunités vous attendent</h3>
+            <BriefcaseBusiness size={30} />
+            <h3>Aucune offre à afficher pour le moment</h3>
             <p>
-              Consultez les offres disponibles ou créez votre profil
-              pour commencer votre recherche.
+              De nouvelles opportunités seront publiées prochainement.
+              Vous pouvez consulter la liste complète des offres.
             </p>
             <Link to="/jobs" className="home-button home-button-primary">
-              Parcourir les offres
+              Parcourir les offres <ArrowRight size={16} />
             </Link>
           </div>
         )}
       </section>
 
-      {/* COMMENT ÇA MARCHE */}
       <section className="home-section home-steps-section">
         <div className="home-section-heading">
-          <span className="home-section-kicker">SIMPLE ET ACCESSIBLE</span>
-          <h2>Votre parcours en trois étapes</h2>
+          <span className="home-section-kicker">COMMENT ÇA FONCTIONNE</span>
+          <h2>Un parcours simple et structuré</h2>
           <p>
-            Passez de la recherche d'emploi à une candidature organisée,
-            à votre rythme.
+            Quelques étapes suffisent pour commencer votre recherche
+            d'opportunités professionnelles.
           </p>
         </div>
 
@@ -362,7 +382,6 @@ export default function Home() {
           {steps.map((step) => (
             <article className="home-step-card" key={step.number}>
               <span className="home-step-number">{step.number}</span>
-              <div className="home-step-line" />
               <h3>{step.title}</h3>
               <p>{step.description}</p>
             </article>
@@ -370,58 +389,51 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ESPACE RECRUTEUR */}
       <section className="home-recruiter-section">
         <div className="home-recruiter-content">
-          <span className="home-section-kicker">
-            VOUS RECRUTEZ ?
-          </span>
-          <h2>Rencontrez les talents qui feront la différence.</h2>
+          <span className="home-section-kicker">ESPACE ENTREPRISE</span>
+          <h2>Vous recrutez ? Gérez vos candidatures efficacement.</h2>
           <p>
-            Présentez vos opportunités, centralisez les candidatures
-            et facilitez le suivi de vos recrutements depuis un espace
-            conçu pour les recruteurs.
+            Publiez vos offres, consultez les profils reçus et organisez
+            le suivi de vos recrutements depuis un espace dédié aux entreprises.
           </p>
-
-          <Link
-            to="/register"
-            className="home-button home-button-white"
-          >
-            Rejoindre SunuJob AI <span aria-hidden="true">→</span>
+          <Link to="/register" className="home-button home-button-white">
+            Accéder à la plateforme <ArrowRight size={17} />
           </Link>
         </div>
 
-        <div className="home-recruiter-visual" aria-hidden="true">
-          <div className="home-recruiter-circle">
-            <span>✦</span>
+        <div className="home-recruiter-details">
+          <div>
+            <Building2 size={21} />
+            <span>Gestion des offres d'emploi</span>
           </div>
-          <div className="home-recruiter-mini-card">
-            <span className="home-recruiter-mini-icon">✓</span>
-            <div>
-              <strong>Un recrutement organisé</strong>
-              <small>Offres, profils et candidatures</small>
-            </div>
+          <div>
+            <Users size={21} />
+            <span>Consultation des candidatures</span>
+          </div>
+          <div>
+            <GraduationCap size={21} />
+            <span>Suivi des profils et compétences</span>
           </div>
         </div>
       </section>
 
-      {/* APPEL À L'ACTION */}
       <section className="home-final-cta">
         <div>
-          <span className="home-section-kicker">LE PROCHAIN CHAPITRE COMMENCE ICI</span>
-          <h2>Prêt à donner un nouvel élan à votre carrière ?</h2>
+          <span className="home-section-kicker">REJOIGNEZ SUNUJOB AI</span>
+          <h2>Donnez une nouvelle dimension à votre parcours professionnel.</h2>
           <p>
-            Créez votre compte et commencez à explorer les possibilités
-            qui correspondent à vos ambitions.
+            Créez votre compte pour accéder aux opportunités et aux outils
+            de recrutement de la plateforme.
           </p>
         </div>
 
         <div className="home-final-actions">
           <Link to="/register" className="home-button home-button-primary">
-            Créer mon compte <span aria-hidden="true">→</span>
+            Créer mon compte <ArrowRight size={17} />
           </Link>
           <Link to="/jobs" className="home-final-link">
-            Voir les offres
+            Consulter les offres
           </Link>
         </div>
       </section>

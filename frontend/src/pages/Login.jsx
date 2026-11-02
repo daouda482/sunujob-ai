@@ -1,66 +1,21 @@
 
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import {
+  ArrowRight,
+  BriefcaseBusiness,
+  Building2,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  FileText,
+  LockKeyhole,
+  Mail,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 import api from "../api/axios";
 import "./Login.css";
-
-function Icon({ name, size = 20 }) {
-  const common = {
-    width: size,
-    height: size,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.8,
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
-    "aria-hidden": true,
-  };
-
-  const paths = {
-    mail: (
-      <>
-        <rect x="3" y="5" width="18" height="14" rx="3" />
-        <path d="m4 7 8 6 8-6" />
-      </>
-    ),
-    lock: (
-      <>
-        <rect x="4" y="10" width="16" height="11" rx="2" />
-        <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-      </>
-    ),
-    eye: (
-      <>
-        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
-        <circle cx="12" cy="12" r="3" />
-      </>
-    ),
-    eyeOff: (
-      <>
-        <path d="m3 3 18 18" />
-        <path d="M10.6 5.2A10.7 10.7 0 0 1 12 5c6.5 0 10 7 10 7a15.8 15.8 0 0 1-3.1 3.8" />
-        <path d="M6.2 6.3C3.5 8.1 2 12 2 12s3.5 7 10 7a10 10 0 0 0 4-.8" />
-      </>
-    ),
-    arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
-    check: <path d="m5 12 4 4L19 6" />,
-    briefcase: (
-      <>
-        <rect x="3" y="7" width="18" height="13" rx="2" />
-        <path d="M8 7V4h8v3M3 12h18M10 12v2h4v-2" />
-      </>
-    ),
-    shield: (
-      <>
-        <path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" />
-        <path d="m9 12 2 2 4-4" />
-      </>
-    ),
-  };
-
-  return <svg {...common}>{paths[name]}</svg>;
-}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -87,11 +42,6 @@ export default function Login() {
     setLoading(true);
 
     try {
-      /*
-       * Endpoint standard Django SimpleJWT.
-       * Si ton backend utilise un autre endpoint de connexion,
-       * adapte uniquement cette URL à celle de ton projet.
-       */
       const response = await api.post("token/", {
         email: normalizedEmail,
         password,
@@ -104,18 +54,21 @@ export default function Login() {
         throw new Error("Le serveur n'a pas renvoyé de jeton d'accès.");
       }
 
-      // Le client Axios utilisera le jeton pour les requêtes suivantes.
-      if (rememberMe) {
-        localStorage.setItem("access", access);
-        if (refresh) localStorage.setItem("refresh", refresh);
-      } else {
-        sessionStorage.setItem("access", access);
-        if (refresh) sessionStorage.setItem("refresh", refresh);
-      }
+      // Nettoyage des anciennes sessions avant d'enregistrer la nouvelle.
+      localStorage.removeItem("access");
+      localStorage.removeItem("refresh");
+      localStorage.removeItem("user");
+      sessionStorage.removeItem("access");
+      sessionStorage.removeItem("refresh");
+      sessionStorage.removeItem("user");
+
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem("access", access);
+
+      if (refresh) storage.setItem("refresh", refresh);
 
       let user = response.data.user || null;
 
-      // Si la connexion ne renvoie pas le compte, le récupérer auprès du backend.
       if (!user) {
         try {
           const profileResponse = await api.get("users/profile/", {
@@ -124,17 +77,12 @@ export default function Login() {
 
           user = profileResponse.data.user || profileResponse.data;
         } catch {
-          // Le jeton peut être valide même si cet endpoint diffère.
           user = null;
         }
       }
 
       if (user) {
-        if (rememberMe) {
-          localStorage.setItem("user", JSON.stringify(user));
-        } else {
-          sessionStorage.setItem("user", JSON.stringify(user));
-        }
+        storage.setItem("user", JSON.stringify(user));
       }
 
       const role = String(user?.role || "").toUpperCase();
@@ -161,7 +109,9 @@ export default function Login() {
         );
       } else if (!err.response) {
         setError(
-          "Impossible de joindre le serveur. Vérifiez que Django est démarré."
+          err.message === "Le serveur n'a pas renvoyé de jeton d'accès."
+            ? err.message
+            : "Impossible de joindre le serveur. Vérifiez que Django est démarré."
         );
       } else {
         setError(
@@ -185,71 +135,66 @@ export default function Login() {
   return (
     <main className="sj-login-page">
       <div className="sj-login-shell">
-        {/* Présentation de SunuJob AI */}
         <section className="sj-login-visual">
-          <Link to="/" className="sj-login-brand">
-            <span className="sj-login-brand-icon">S<span>✦</span></span>
-            <span>SunuJob <strong>AI</strong></span>
+          <Link to="/" className="sj-login-brand" aria-label="SunuJob AI - Accueil">
+            <span className="sj-login-brand-mark">SJ</span>
+            <span className="sj-login-brand-name">
+              SunuJob <strong>AI</strong>
+            </span>
           </Link>
 
           <div className="sj-login-visual-content">
-            <span className="sj-login-eyebrow">
-              <span className="sj-login-eyebrow-dot" />
-              LE RECRUTEMENT ENTRE DANS UNE NOUVELLE ÈRE
-            </span>
+            <span className="sj-login-eyebrow">PLATEFORME DE RECRUTEMENT</span>
 
             <h1>
-              Votre prochain chapitre
-              <span> professionnel commence ici.</span>
+              Le recrutement et la carrière, au même endroit.
             </h1>
 
             <p className="sj-login-visual-description">
-              Connectez-vous pour découvrir les opportunités qui correspondent
-              à vos compétences, suivre vos candidatures et faire avancer votre carrière.
+              Retrouvez votre espace professionnel pour consulter les
+              opportunités, gérer vos candidatures et suivre vos démarches.
             </p>
 
-            <div className="sj-login-illustration">
-              <div className="sj-login-orbit sj-login-orbit-one" />
-              <div className="sj-login-orbit sj-login-orbit-two" />
-
-              <div className="sj-login-illustration-center">
-                <span className="sj-login-illustration-star">✦</span>
-                <strong>S</strong>
-                <small>AI</small>
+            <div className="sj-login-service-list">
+              <div className="sj-login-service-item">
+                <span><BriefcaseBusiness size={19} /></span>
+                <div>
+                  <strong>Offres d'emploi</strong>
+                  <small>Consultez les opportunités disponibles.</small>
+                </div>
               </div>
 
-              <div className="sj-login-float-card sj-login-float-top">
-                <span className="sj-login-float-icon purple">
-                  <Icon name="briefcase" size={21} />
-                </span>
-                <span>
-                  <strong>Des opportunités ciblées</strong>
-                  <small>Découvrez les offres qui vous correspondent</small>
-                </span>
+              <div className="sj-login-service-item">
+                <span><FileText size={19} /></span>
+                <div>
+                  <strong>Gestion des candidatures</strong>
+                  <small>Centralisez et suivez vos démarches.</small>
+                </div>
               </div>
 
-              <div className="sj-login-float-card sj-login-float-bottom">
-                <span className="sj-login-float-icon green">
-                  <Icon name="check" size={22} />
-                </span>
-                <span>
-                  <strong>Un suivi simplifié</strong>
-                  <small>Gardez le contrôle sur vos candidatures</small>
-                </span>
+              <div className="sj-login-service-item">
+                <span><Building2 size={19} /></span>
+                <div>
+                  <strong>Espace recruteur</strong>
+                  <small>Organisez vos processus de recrutement.</small>
+                </div>
               </div>
             </div>
           </div>
 
           <div className="sj-login-visual-footer">
-            <span><Icon name="shield" size={16} /> Un espace personnel sécurisé</span>
-            <span>Conçu au Sénégal 🇸🇳</span>
+            <span><ShieldCheck size={16} /> Accès sécurisé à votre espace</span>
+            <span>Conçu au Sénégal</span>
           </div>
         </section>
 
-        {/* Formulaire */}
         <section className="sj-login-form-panel">
           <div className="sj-login-form-top">
-            <span className="sj-login-mobile-logo">S</span>
+            <Link to="/" className="sj-login-mobile-brand">
+              <span className="sj-login-brand-mark">SJ</span>
+              <span className="sj-login-brand-name">SunuJob <strong>AI</strong></span>
+            </Link>
+
             <p>
               Pas encore de compte ?
               <Link to="/register"> Créer un compte</Link>
@@ -259,19 +204,19 @@ export default function Login() {
           <div className="sj-login-form-content">
             <div className="sj-login-form-heading">
               <span className="sj-login-form-icon">
-                <Icon name="lock" size={24} />
+                <LockKeyhole size={22} />
               </span>
 
-              <p className="sj-login-kicker">HEUREUX DE VOUS REVOIR</p>
+              <p className="sj-login-kicker">ACCÈS À VOTRE ESPACE</p>
               <h2>Connexion</h2>
               <p className="sj-login-subtitle">
-                Accédez à votre espace et poursuivez votre parcours professionnel.
+                Saisissez vos identifiants pour accéder à votre compte SunuJob AI.
               </p>
             </div>
 
             {error && (
               <div className="sj-login-error" role="alert">
-                <span aria-hidden="true">!</span>
+                <span>!</span>
                 <p>{error}</p>
               </div>
             )}
@@ -281,16 +226,13 @@ export default function Login() {
                 <label htmlFor="login-email">Adresse e-mail</label>
 
                 <div className="sj-login-input-wrap">
-                  <span className="sj-login-input-icon">
-                    <Icon name="mail" size={19} />
-                  </span>
-
+                  <Mail size={18} className="sj-login-input-icon" />
                   <input
                     id="login-email"
                     name="email"
                     type="email"
                     autoComplete="email"
-                    placeholder="exemple@domaine.com"
+                    placeholder="nom@exemple.com"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     required
@@ -307,16 +249,13 @@ export default function Login() {
                 </div>
 
                 <div className="sj-login-input-wrap">
-                  <span className="sj-login-input-icon">
-                    <Icon name="lock" size={19} />
-                  </span>
-
+                  <LockKeyhole size={18} className="sj-login-input-icon" />
                   <input
                     id="login-password"
                     name="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
-                    placeholder="Saisissez votre mot de passe"
+                    placeholder="Votre mot de passe"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     required
@@ -332,7 +271,7 @@ export default function Login() {
                         : "Afficher le mot de passe"
                     }
                   >
-                    <Icon name={showPassword ? "eyeOff" : "eye"} size={19} />
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
               </div>
@@ -343,8 +282,8 @@ export default function Login() {
                   checked={rememberMe}
                   onChange={(event) => setRememberMe(event.target.checked)}
                 />
-                <span className="sj-login-custom-checkbox">
-                  <Icon name="check" size={13} />
+                <span className="sj-login-checkbox-ui">
+                  <CheckCircle2 size={14} />
                 </span>
                 <span>Rester connecté sur cet appareil</span>
               </label>
@@ -361,35 +300,33 @@ export default function Login() {
                   </>
                 ) : (
                   <>
-                    Se connecter
-                    <Icon name="arrow" size={19} />
+                    Se connecter <ArrowRight size={18} />
                   </>
                 )}
               </button>
             </form>
 
-            <div className="sj-login-divider">
-              <span />
-              <p>Votre avenir professionnel</p>
-              <span />
-            </div>
-
-            <div className="sj-login-bottom-note">
-              <Icon name="shield" size={17} />
+            <div className="sj-login-security-note">
+              <ShieldCheck size={18} />
               <p>
-                Vos informations sont utilisées pour sécuriser votre accès
-                à votre espace SunuJob AI.
+                Vos informations de connexion sont traitées de manière
+                sécurisée pour protéger l'accès à votre compte.
               </p>
             </div>
 
+            <div className="sj-login-platform-note">
+              <Users size={16} />
+              <span>Un espace adapté aux candidats et aux recruteurs.</span>
+            </div>
+
             <p className="sj-login-register-mobile">
-              Vous nous rejoignez pour la première fois ?
-              <Link to="/register"> Créer un compte gratuitement</Link>
+              Vous découvrez SunuJob AI ?
+              <Link to="/register"> Créer un compte</Link>
             </p>
           </div>
 
           <div className="sj-login-form-footer">
-            <Link to="/">← Retour à l'accueil</Link>
+            <Link to="/">Retour à l'accueil</Link>
             <span>© {new Date().getFullYear()} SunuJob AI</span>
           </div>
         </section>

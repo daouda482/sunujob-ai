@@ -2,18 +2,27 @@
 import React, { Component } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 
-// Composants communs
+// =====================================================
+// COMPOSANTS COMMUNS
+// =====================================================
+
 import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
-// Pages publiques
+// =====================================================
+// PAGES PUBLIQUES
+// =====================================================
+
 import Home from "./pages/Home.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import ComingSoon from "./pages/ComingSoon.jsx";
 
-// Pages candidat
+// =====================================================
+// PAGES CANDIDAT
+// =====================================================
+
 import CandidateDashboard from "./pages/candidate/CandidateDashboard.jsx";
 import CandidateProfile from "./pages/CandidateProfile.jsx";
 import Applications from "./pages/candidate/Applications.jsx";
@@ -24,16 +33,23 @@ import Recommendations from "./pages/candidate/Recommendations.jsx";
 import CVAnalysis from "./pages/candidate/CVAnalysis.jsx";
 import AICoach from "./pages/candidate/AICoach.jsx";
 import CandidateCV from "./pages/candidate/CandidateCV.jsx";
+
 import Favorites from "./pages/candidate/Favorites.jsx";
 import JobAlerts from "./pages/candidate/JobAlerts.jsx";
 
-// Pages emploi
+// =====================================================
+// PAGES EMPLOI
+// =====================================================
+
 import Jobs from "./pages/Jobs.jsx";
 import JobDetails from "./pages/JobDetails.jsx";
 import Apply from "./pages/Apply.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
 
-// Pages recruteur
+// =====================================================
+// PAGES RECRUTEUR
+// =====================================================
+
 import RecruiterDashboard from "./pages/recruiter/RecruiterDashboard.jsx";
 import RecruiterJobs from "./pages/recruiter/RecruiterJobs.jsx";
 import RecruiterJobForm from "./pages/recruiter/RecruiterJobForm.jsx";
@@ -43,7 +59,10 @@ import RecruiterCompanies from "./pages/recruiter/RecruiterCompanies.jsx";
 import RecruiterStatistics from "./pages/recruiter/RecruiterStatistics.jsx";
 import CompanyVerification from "./pages/recruiter/CompanyVerification.jsx";
 
-// Pages administrateur
+// =====================================================
+// PAGES ADMINISTRATEUR
+// =====================================================
+
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import AdminUsers from "./pages/admin/AdminUsers.jsx";
 import AdminCompanies from "./pages/admin/AdminCompanies.jsx";
@@ -58,7 +77,10 @@ import AdminVerifications from "./pages/admin/AdminVerifications.jsx";
 import AdminCatalog from "./pages/admin/AdminCatalog.jsx";
 import AdminSupport from "./pages/admin/AdminSupport.jsx";
 
-// Support
+// =====================================================
+// SUPPORT
+// =====================================================
+
 import SupportCenter from "./pages/support/SupportCenter.jsx";
 
 // =====================================================
@@ -114,16 +136,12 @@ class AppErrorBoundary extends Component {
               color: "#9b1c1c",
               whiteSpace: "pre-wrap",
               overflowWrap: "anywhere",
-              borderRadius: "8px",
             }}
           >
             {this.state.message}
           </pre>
 
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-          >
+          <button onClick={() => window.location.reload()}>
             Recharger l'application
           </button>
         </main>
@@ -135,30 +153,30 @@ class AppErrorBoundary extends Component {
 }
 
 // =====================================================
-// ROUTES DE L'APPLICATION
+// GESTION DES ROUTES DE L'APPLICATION
 // =====================================================
 
 function AppRoutes() {
   const location = useLocation();
 
-  // Identification des espaces
+  // Pages recruteur
   const isRecruiterPage =
     location.pathname.startsWith("/recruiter");
 
+  // Pages administrateur
   const isAdminPage =
     location.pathname.startsWith("/admin");
 
-  // Suppression correcte des slashs finaux
-  const normalizedPath = location.pathname.replace(/\/+$/, "");
+  // Toutes les pages de l'espace candidat
+  const isCandidatePage =
+    location.pathname.startsWith("/candidate");
 
-  const isCandidateDashboardPage =
-    normalizedPath === "/candidate/dashboard";
-
-  // Les espaces privés ont leur propre navigation
+  // Afficher Navbar et Footer uniquement sur les pages
+  // qui utilisent la présentation publique.
   const showPublicLayout =
     !isRecruiterPage &&
     !isAdminPage &&
-    !isCandidateDashboardPage;
+    !isCandidatePage;
 
   return (
     <>
@@ -169,9 +187,9 @@ function AppRoutes() {
       {isAdminPage && <AdminNavigation />}
 
       <Routes>
-        {/* =========================
+        {/* =========================================
             PAGES PUBLIQUES
-        ========================= */}
+        ========================================= */}
 
         <Route path="/" element={<Home />} />
 
@@ -188,30 +206,40 @@ function AppRoutes() {
           element={<NotificationsPage />}
         />
 
-        {/* =========================
+        {/* =========================================
             ESPACE CANDIDAT
-        ========================= */}
+        ========================================= */}
 
         <Route
           element={
             <ProtectedRoute allowedRoles={["CANDIDATE"]} />
           }
         >
+          {/* Tableau de bord */}
           <Route
             path="/candidate/dashboard"
             element={<CandidateDashboard />}
           />
 
+          {/* Profil candidat */}
           <Route
             path="/candidate/profile"
             element={<CandidateProfile />}
           />
 
+          {/* Gestion du CV */}
           <Route
             path="/candidate/cv"
             element={<CandidateCV />}
           />
 
+          {/* Analyse du CV par IA */}
+          <Route
+            path="/candidate/cv-analysis"
+            element={<CVAnalysis />}
+          />
+
+          {/* Candidatures */}
           <Route
             path="/candidate/applications"
             element={<Applications />}
@@ -227,50 +255,60 @@ function AppRoutes() {
             element={<MyApplications />}
           />
 
+          {/* Notifications candidat */}
           <Route
             path="/candidate/notifications"
             element={<NotificationsPage />}
           />
 
+          {/* Recommandations IA */}
           <Route
             path="/candidate/recommendations"
             element={<Recommendations />}
           />
 
+          {/* Entretiens */}
           <Route
             path="/candidate/interviews"
             element={<Interviews />}
           />
 
+          {/* Coach carrière IA */}
           <Route
             path="/candidate/ai-coach"
             element={<AICoach />}
           />
 
-          <Route
-            path="/candidate/cv-analysis"
-            element={<CVAnalysis />}
-          />
-
+          {/* Formulaire de candidature */}
           <Route
             path="/jobs/:id/apply"
             element={<Apply />}
           />
 
+          {/* Favoris */}
           <Route
             path="/candidate/favorites"
             element={<Favorites />}
           />
 
+          {/* Alertes emploi */}
           <Route
             path="/candidate/job-alerts"
             element={<JobAlerts />}
           />
+
+          {/* Paramètres candidat */}
+          <Route
+            path="/candidate/settings"
+            element={
+              <ComingSoon title="Paramètres de votre espace candidat" />
+            }
+          />
         </Route>
 
-        {/* =========================
+        {/* =========================================
             ESPACE RECRUTEUR
-        ========================= */}
+        ========================================= */}
 
         <Route
           element={
@@ -323,9 +361,9 @@ function AppRoutes() {
           />
         </Route>
 
-        {/* =========================
-            ORGANISME DE FORMATION
-        ========================= */}
+        {/* =========================================
+            ESPACE ORGANISME DE FORMATION
+        ========================================= */}
 
         <Route
           element={
@@ -342,9 +380,9 @@ function AppRoutes() {
           />
         </Route>
 
-        {/* =========================
+        {/* =========================================
             CENTRE DE SUPPORT
-        ========================= */}
+        ========================================= */}
 
         <Route
           element={
@@ -359,9 +397,9 @@ function AppRoutes() {
           />
         </Route>
 
-        {/* =========================
+        {/* =========================================
             ESPACE ADMINISTRATEUR
-        ========================= */}
+        ========================================= */}
 
         <Route
           element={
@@ -434,9 +472,9 @@ function AppRoutes() {
           />
         </Route>
 
-        {/* =========================
-            PAGE INCONNUE
-        ========================= */}
+        {/* =========================================
+            ROUTE INCONNUE
+        ========================================= */}
 
         <Route
           path="*"
