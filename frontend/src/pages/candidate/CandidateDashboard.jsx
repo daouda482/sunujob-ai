@@ -26,7 +26,8 @@ import {
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import api from "../../api/axios";
-import "./candidate/CandidateDashboard.css";
+import "./CandidateDashboard.css";
+
 const API_ORIGIN = (
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/"
 ).replace(/\/api\/?$/, "");
