@@ -4,16 +4,19 @@ import logging
 from django.db import IntegrityError, transaction
 from django.db.models import Q
 
-from notifications.notification_events import (
-    notify_application_status,
-    notify_new_application,
-)
-
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from audit_logs.models import AuditLog
+from audit_logs.services import record_audit
+
+from notifications.notification_events import (
+    notify_application_status,
+    notify_new_application,
+)
 
 from users.permissions import IsCandidate, IsRecruiter
 
@@ -45,6 +48,7 @@ class ApplicationCreateView(generics.CreateAPIView):
 
     Le CV est automatiquement récupéré depuis le profil candidat.
     Une notification est envoyée au recruteur après l'enregistrement.
+    L'action est également enregistrée dans le journal d'activité.
     """
 
     serializer_class = ApplicationSerializer
@@ -58,11 +62,10 @@ class ApplicationCreateView(generics.CreateAPIView):
         try:
             with transaction.atomic():
 
-                # Récupérer le profil du candidat connecté.
                 candidate_profile = getattr(
                     request.user,
                     "candidate_profile",
-                    None
+                    None,
                 )
 
                 # Vérifier que le candidat possède un CV enregistré.
@@ -80,14 +83,30 @@ class ApplicationCreateView(generics.CreateAPIView):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
-                # Créer la candidature en utilisant automatiquement
-                # le CV déjà enregistré dans le profil candidat.
+                # Créer la candidature.
                 application = serializer.save(
                     candidate=request.user,
                     resume=candidate_profile.resume,
                 )
 
-                # Notifier le recruteur de la nouvelle candidature.
+                # Enregistrer l'action dans le journal d'activité.
+                record_audit(
+                    actor=request.user,
+                    application=application,
+                    action=AuditLog.ActionType.APPLICATION_CREATED,
+                    description=(
+                        f"{request.user.email} a soumis une candidature "
+                        f"pour l'offre : {application.job.title}."
+                    ),
+                    new_value=application.status,
+                    metadata={
+                        "job_id": application.job_id,
+                        "job_title": application.job.title,
+                    },
+                    request=request,
+                )
+
+                # Notifier le recruteur.
                 notify_new_application(application)
 
         except IntegrityError:
@@ -209,6 +228,7 @@ class ApplicationStatusUpdateView(generics.UpdateAPIView):
     Permet au recruteur de modifier le statut ou la note interne
     d'une candidature reçue pour l'une de ses offres.
 
+    Les changements sont enregistrés dans le journal d'activité.
     Le candidat est notifié uniquement si le statut change.
     """
 
@@ -225,8 +245,9 @@ class ApplicationStatusUpdateView(generics.UpdateAPIView):
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
 
-        # Conserver l'ancien statut avant modification.
+        # Sauvegarder les anciennes valeurs.
         previous_status = instance.status
+        previous_note = instance.recruiter_note
 
         input_serializer = self.get_serializer(
             instance,
@@ -238,15 +259,59 @@ class ApplicationStatusUpdateView(generics.UpdateAPIView):
 
         with transaction.atomic():
 
-            # Enregistrer le nouveau statut et la note éventuelle.
+            # Enregistrer les nouvelles valeurs.
             application = input_serializer.save()
 
-            # Notifier uniquement si le statut a changé.
+            # Journaliser le changement de statut.
             if previous_status != application.status:
+
+                record_audit(
+                    actor=request.user,
+                    application=application,
+                    action=AuditLog.ActionType.APPLICATION_STATUS_CHANGED,
+                    description=(
+                        f"Le recruteur {request.user.email} a modifié "
+                        f"le statut de la candidature "
+                        f"#{application.pk}."
+                    ),
+                    old_value=previous_status,
+                    new_value=application.status,
+                    metadata={
+                        "old_status_label": dict(
+                            Application.Status.choices
+                        ).get(previous_status, previous_status),
+                        "new_status_label": dict(
+                            Application.Status.choices
+                        ).get(
+                            application.status,
+                            application.status,
+                        ),
+                    },
+                    request=request,
+                )
+
+                # Notifier le candidat uniquement si le statut change.
                 notify_application_status(
                     application,
                     previous_status,
                     application.status,
+                )
+
+            # Journaliser séparément la modification de la note.
+            if previous_note != application.recruiter_note:
+
+                record_audit(
+                    actor=request.user,
+                    application=application,
+                    action=AuditLog.ActionType.APPLICATION_NOTE_UPDATED,
+                    description=(
+                        f"Le recruteur {request.user.email} a modifié "
+                        f"la note interne de la candidature "
+                        f"#{application.pk}."
+                    ),
+                    old_value=previous_note,
+                    new_value=application.recruiter_note,
+                    request=request,
                 )
 
         output_serializer = ApplicationSerializer(

@@ -1,0 +1,48 @@
+
+from django.contrib import admin
+from .models import AuditLog
+
+
+@admin.register(AuditLog)
+class AuditLogAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "action",
+        "actor",
+        "application",
+        "interview",
+        "created_at",
+    )
+
+    list_filter = (
+        "action",
+        "created_at",
+    )
+
+    search_fields = (
+        "description",
+        "actor__email",
+        "application__candidate__email",
+    )
+
+    readonly_fields = (
+        "actor",
+        "application",
+        "interview",
+        "action",
+        "description",
+        "old_value",
+        "new_value",
+        "metadata",
+        "ip_address",
+        "created_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

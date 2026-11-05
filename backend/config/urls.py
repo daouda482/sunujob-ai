@@ -3,7 +3,6 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
-
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -160,6 +159,7 @@ urlpatterns = [
         "api/interviews/",
         include("interviews.urls"),
     ),
+    path("api/evaluations/", include("evaluations.urls")),
 
     # ==================================================
     # NOTIFICATIONS ET INTELLIGENCE ARTIFICIELLE
@@ -406,6 +406,8 @@ urlpatterns = [
         AdminPlatformSettingsAPIView.as_view(),
         name="admin-platform-settings",
     ),
+    # ==================================================
+    path("api/audit-logs/", include("audit_logs.urls")),
 ]
 
 

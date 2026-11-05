@@ -12,14 +12,17 @@ from .serializers import JobSerializer, PublishedJobSerializer
 
 def get_public_jobs_queryset():
     """
-    Retourne les offres publiées et encore accessibles
-    aux candidats.
+    Retourne uniquement les offres accessibles publiquement.
 
-    Une offre est publique si :
-    - son statut est PUBLISHED ;
-    - elle ne possède pas de date limite ;
-    - ou sa date limite n'est pas dépassée.
+    Conditions :
+    - statut PUBLISHED ;
+    - aucune date limite ou date limite encore valide ;
+    - entreprise et recruteur chargés pour optimiser les requêtes.
+
+    Une offre dont la date limite est aujourd'hui reste accessible
+    jusqu'à la fin de cette journée à Dakar.
     """
+
     today = timezone.localdate()
 
     return (
@@ -37,10 +40,15 @@ def get_public_jobs_queryset():
 class JobListCreateView(generics.ListCreateAPIView):
     """
     Liste et création des offres du recruteur connecté.
+
+    Le recruteur ne peut consulter que ses propres offres.
     """
 
     serializer_class = JobSerializer
-    permission_classes = [IsAuthenticated, IsRecruiter]
+    permission_classes = [
+        IsAuthenticated,
+        IsRecruiter,
+    ]
 
     def get_queryset(self):
         return (
@@ -54,13 +62,17 @@ class JobListCreateView(generics.ListCreateAPIView):
         serializer.save(recruiter=self.request.user)
 
 
-class JobDetailView(generics.RetrieveUpdateDestroyAPIView):
+class JobDetailView(generics.RetrieveUpdateAPIView):
     """
-    Consultation, modification et suppression
-    d'une offre appartenant au recruteur connecté.
+    Consultation et modification d'une offre appartenant
+    au recruteur connecté.
+
+    La suppression physique est volontairement désactivée
+    afin de préserver l'historique des recrutements.
     """
 
     serializer_class = JobSerializer
+
     permission_classes = [
         IsAuthenticated,
         IsRecruiter,
@@ -77,7 +89,10 @@ class JobDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class PublishedJobListView(generics.ListAPIView):
     """
-    Liste publique des offres disponibles.
+    Liste publique des offres disponibles pour les candidats.
+
+    Les offres suspendues, clôturées, expirées et archivées
+    ne sont jamais retournées.
     """
 
     serializer_class = PublishedJobSerializer
@@ -87,6 +102,7 @@ class PublishedJobListView(generics.ListAPIView):
         queryset = get_public_jobs_queryset()
         params = self.request.query_params
 
+        # Recherche générale
         search = params.get("search", "").strip()
 
         if search:
@@ -99,6 +115,7 @@ class PublishedJobListView(generics.ListAPIView):
                 | Q(company__name__icontains=search)
             )
 
+        # Filtrage par localisation
         location = params.get("location", "").strip()
 
         if location:
@@ -106,6 +123,7 @@ class PublishedJobListView(generics.ListAPIView):
                 location__icontains=location
             )
 
+        # Filtrage par secteur
         sector = params.get("sector", "").strip()
 
         if sector:
@@ -113,6 +131,7 @@ class PublishedJobListView(generics.ListAPIView):
                 sector__icontains=sector
             )
 
+        # Filtrage par type de contrat
         contract_type = (
             params.get("contract_type", "")
             .strip()
@@ -121,8 +140,8 @@ class PublishedJobListView(generics.ListAPIView):
 
         if contract_type:
             valid_types = [
-                value for value, label
-                in Job.ContractType.choices
+                value
+                for value, label in Job.ContractType.choices
             ]
 
             if contract_type not in valid_types:
@@ -137,7 +156,10 @@ class PublishedJobListView(generics.ListAPIView):
 
 class PublishedJobDetailView(generics.RetrieveAPIView):
     """
-    Détail public d'une offre publiée et non expirée.
+    Détail public d'une offre publiée et encore accessible.
+
+    Une offre suspendue, clôturée ou expirée renvoie une
+    réponse 404, même si son identifiant est connu.
     """
 
     serializer_class = PublishedJobSerializer

@@ -8,6 +8,7 @@ from pathlib import Path
 from datetime import timedelta
 
 from dotenv import load_dotenv
+from celery.schedules import crontab
 
 
 # =====================================================
@@ -16,7 +17,6 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Charger les variables d'environnement avant leur utilisation.
 load_dotenv(BASE_DIR / ".env")
 
 
@@ -65,6 +65,10 @@ INSTALLED_APPS = [
     "ai_engine",
     "job_alerts.apps.JobAlertsConfig",
     "favorites",
+    "audit_logs",
+    "evaluations",
+
+    "django_celery_beat",
 ]
 
 
@@ -113,8 +117,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 
 # =====================================================
-# BASE DE DONNÉES
-# SQLITE
+# BASE DE DONNÉES - SQLITE
 # =====================================================
 
 DATABASES = {
@@ -233,21 +236,16 @@ CV_MAX_FILE_SIZE_MB = 8
 # CONFIGURATION CENTRALE OLLAMA
 # =====================================================
 
-# Adresse du serveur Ollama.
 OLLAMA_BASE_URL = os.getenv(
     "OLLAMA_BASE_URL",
     "http://127.0.0.1:11434"
 ).rstrip("/")
 
-
-# Modèle réellement installé sur la machine.
 OLLAMA_MODEL = os.getenv(
     "OLLAMA_MODEL",
     "qwen2.5:3b"
 )
 
-
-# Délai maximal d'attente.
 try:
     OLLAMA_TIMEOUT = int(
         os.getenv("OLLAMA_TIMEOUT", "180")
@@ -270,18 +268,15 @@ CV_AI_OLLAMA_ENABLED = (
     ).strip().lower() == "true"
 )
 
-
 CV_AI_OLLAMA_URL = os.getenv(
     "CV_AI_OLLAMA_URL",
     f"{OLLAMA_BASE_URL}/api/generate"
 )
 
-
 CV_AI_OLLAMA_MODEL = os.getenv(
     "CV_AI_OLLAMA_MODEL",
     OLLAMA_MODEL
 )
-
 
 try:
     CV_AI_OLLAMA_TIMEOUT = int(
@@ -301,9 +296,6 @@ if CV_AI_OLLAMA_TIMEOUT <= 0:
 # CONFIGURATION DU COACH IA
 # =====================================================
 
-# Le Coach IA réutilise exactement la configuration
-# Ollama de l'analyseur de CV.
-
 AI_COACH_OLLAMA_URL = CV_AI_OLLAMA_URL
 
 AI_COACH_OLLAMA_MODEL = CV_AI_OLLAMA_MODEL
@@ -312,12 +304,103 @@ AI_COACH_OLLAMA_TIMEOUT = CV_AI_OLLAMA_TIMEOUT
 
 
 # =====================================================
-# EMAIL DE DÉVELOPPEMENT
+# CONFIGURATION EMAIL SMTP - SUNUJOB AI
 # =====================================================
 
-EMAIL_BACKEND = (
-    "django.core.mail.backends.console.EmailBackend"
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.smtp.EmailBackend"
 )
+
+EMAIL_HOST = os.getenv(
+    "EMAIL_HOST",
+    "smtp.gmail.com"
+)
+
+EMAIL_PORT = int(
+    os.getenv("EMAIL_PORT", "587")
+)
+
+EMAIL_USE_TLS = (
+    os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
+)
+
+EMAIL_USE_SSL = (
+    os.getenv("EMAIL_USE_SSL", "False").lower() == "true"
+)
+
+EMAIL_HOST_USER = os.getenv(
+    "EMAIL_HOST_USER",
+    ""
+)
+
+EMAIL_HOST_PASSWORD = os.getenv(
+    "EMAIL_HOST_PASSWORD",
+    ""
+)
+
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DEFAULT_FROM_EMAIL",
+    EMAIL_HOST_USER
+)
+
+EMAIL_TIMEOUT = 20
+
+
+# =====================================================
+# CONFIGURATION CELERY ET REDIS - SUNUJOB AI
+# =====================================================
+
+# Connexion Redis
+CELERY_BROKER_URL = os.getenv(
+    "CELERY_BROKER_URL",
+    "redis://127.0.0.1:6379/0"
+)
+
+CELERY_RESULT_BACKEND = os.getenv(
+    "CELERY_RESULT_BACKEND",
+    "redis://127.0.0.1:6379/1"
+)
+
+# Sérialisation
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+
+# Fuseau horaire
+CELERY_TIMEZONE = "Africa/Dakar"
+CELERY_ENABLE_UTC = True
+
+# Découverte des tâches
+CELERY_IMPORTS = (
+    "interviews.tasks",
+    "notifications.tasks",
+)
+
+# Gestion de la connexion Redis
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# Planificateur Celery Beat
+CELERY_BEAT_SCHEDULER = (
+    "django_celery_beat.schedulers:DatabaseScheduler"
+)
+
+# Vérification automatique des rappels d'entretien
+CELERY_BEAT_SCHEDULE = {
+    "process-interview-reminders-every-minute": {
+        "task": "interviews.tasks.process_due_interview_reminders",
+        "schedule": crontab(minute="*"),
+    },
+}
+
+# Gestion des tâches
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 300
+CELERY_TASK_SOFT_TIME_LIMIT = 240
+
+# Résultats des tâches
+CELERY_TASK_IGNORE_RESULT = False
+CELERY_RESULT_EXPIRES = 3600
 
 
 # =====================================================
@@ -325,3 +408,30 @@ EMAIL_BACKEND = (
 # =====================================================
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# =====================================================
+# CONFIGURATION TWILIO SMS
+# =====================================================
+
+TWILIO_ACCOUNT_SID = os.getenv(
+    "TWILIO_ACCOUNT_SID",
+    ""
+)
+
+TWILIO_AUTH_TOKEN = os.getenv(
+    "TWILIO_AUTH_TOKEN",
+    ""
+)
+
+TWILIO_FROM_NUMBER = os.getenv(
+    "TWILIO_FROM_NUMBER",
+    ""
+)
+
+TWILIO_ENABLED = (
+    os.getenv(
+        "TWILIO_ENABLED",
+        "False"
+    ).lower() == "true"
+)

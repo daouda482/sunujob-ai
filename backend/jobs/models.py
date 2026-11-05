@@ -2,6 +2,7 @@
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 from companies.models import Company
 
@@ -20,7 +21,10 @@ class Job(models.Model):
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Brouillon"
         PUBLISHED = "PUBLISHED", "Publiée"
-        CLOSED = "CLOSED", "Fermée"
+        SUSPENDED = "SUSPENDED", "Suspendue"
+        CLOSED = "CLOSED", "Clôturée"
+        EXPIRED = "EXPIRED", "Expirée"
+        ARCHIVED = "ARCHIVED", "Archivée"
 
     recruiter = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -124,5 +128,28 @@ class Job(models.Model):
         verbose_name_plural = "Offres d'emploi"
         ordering = ["-created_at"]
 
+        indexes = [
+            models.Index(
+                fields=["status", "deadline"],
+                name="job_status_deadline_idx",
+            ),
+        ]
+
     def __str__(self):
         return f"{self.title} - {self.company.name}"
+
+    @property
+    def is_accepting_applications(self):
+        """
+        Indique si l'offre peut recevoir de nouvelles candidatures.
+
+        La date limite est considérée comme valable jusqu'à la fin
+        de la journée indiquée.
+        """
+        if self.status != self.Status.PUBLISHED:
+            return False
+
+        if self.deadline and self.deadline < timezone.localdate():
+            return False
+
+        return True
