@@ -1,7 +1,8 @@
 
 import React, { useCallback, useEffect, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import api from "../../api/axios";
+import RecruiterSidebar from "../../components/recruiter/RecruiterSidebar";
 import "./RecruiterDashboard.css";
 
 const STATUS_LABELS = {
@@ -21,6 +22,8 @@ const STATUS_LABELS = {
   CANCELLED: "Annulé",
   CANCELED: "Annulé",
   WITHDRAWN: "Retirée",
+  HIRED: "Recrutée",
+  RECRUITED: "Recrutée",
 };
 
 function getStatusLabel(status) {
@@ -120,8 +123,6 @@ function StatCard({ title, value, description, icon, loading }) {
 }
 
 export default function RecruiterDashboard() {
-  const navigate = useNavigate();
-
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState([]);
   const [interviews, setInterviews] = useState([]);
@@ -188,18 +189,6 @@ export default function RecruiterDashboard() {
     loadDashboard();
   }, [loadDashboard]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
-    localStorage.removeItem("user");
-
-    sessionStorage.removeItem("access");
-    sessionStorage.removeItem("refresh");
-    sessionStorage.removeItem("user");
-
-    navigate("/login", { replace: true });
-  };
-
   const publishedJobs = jobs.filter((job) =>
     ["PUBLISHED", "OPEN", "ACTIVE"].includes(getJobStatus(job))
   );
@@ -232,99 +221,13 @@ export default function RecruiterDashboard() {
 
   return (
     <div className="recruiter-dashboard">
-      <aside className="recruiter-sidebar">
-        <div className="recruiter-brand">
-          <div className="recruiter-brand-logo">S</div>
 
-          <div>
-            <h2>SunuJob AI</h2>
-            <p>Espace recruteur</p>
-          </div>
-        </div>
+      {/* MENU LATÉRAL */}
+      <RecruiterSidebar applicationsCount={applications.length} />
 
-        <nav className="recruiter-nav" aria-label="Navigation recruteur">
-          <p className="recruiter-nav-heading">MENU PRINCIPAL</p>
-
-          <NavLink
-            to="/recruiter/dashboard"
-            className={({ isActive }) =>
-              `recruiter-nav-link ${isActive ? "active" : ""}`
-            }
-          >
-            <span aria-hidden="true">▦</span>
-            Tableau de bord
-          </NavLink>
-
-          <NavLink
-            to="/recruiter/jobs"
-            className={({ isActive }) =>
-              `recruiter-nav-link ${isActive ? "active" : ""}`
-            }
-          >
-            <span aria-hidden="true">▤</span>
-            Mes offres d'emploi
-          </NavLink>
-
-          <NavLink
-            to="/recruiter/applications"
-            className={({ isActive }) =>
-              `recruiter-nav-link ${isActive ? "active" : ""}`
-            }
-          >
-            <span aria-hidden="true">♙</span>
-            Candidatures
-            {applications.length > 0 && (
-              <span className="nav-count">{applications.length}</span>
-            )}
-          </NavLink>
-
-          <NavLink
-            to="/recruiter/interviews"
-            className={({ isActive }) =>
-              `recruiter-nav-link ${isActive ? "active" : ""}`
-            }
-          >
-            <span aria-hidden="true">◷</span>
-            Entretiens
-          </NavLink>
-
-          <p className="recruiter-nav-heading">ENTREPRISE</p>
-
-          <NavLink
-            to="/recruiter/company"
-            className={({ isActive }) =>
-              `recruiter-nav-link ${isActive ? "active" : ""}`
-            }
-          >
-            <span aria-hidden="true">▧</span>
-            Mon entreprise
-          </NavLink>
-        </nav>
-
-        <div className="recruiter-sidebar-bottom">
-          <div className="recruiter-help-card">
-            <div className="recruiter-help-icon" aria-hidden="true">
-              ✦
-            </div>
-
-            <h3>Besoin d'aide ?</h3>
-            <p>
-              Gérez vos recrutements plus facilement avec SunuJob AI.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="recruiter-logout"
-            onClick={handleLogout}
-          >
-            <span aria-hidden="true">↪</span>
-            Se déconnecter
-          </button>
-        </div>
-      </aside>
-
+      {/* CONTENU PRINCIPAL */}
       <main className="recruiter-main">
+
         <header className="recruiter-topbar">
           <div>
             <p className="recruiter-breadcrumb">
@@ -332,6 +235,7 @@ export default function RecruiterDashboard() {
             </p>
 
             <h1>Tableau de bord</h1>
+
             <p className="recruiter-page-subtitle">
               Suivez vos offres, vos candidatures et vos recrutements.
             </p>
@@ -356,6 +260,7 @@ export default function RecruiterDashboard() {
           </div>
         </header>
 
+        {/* MESSAGE D'ERREUR */}
         {error && (
           <div className="recruiter-alert" role="alert">
             <p>{error}</p>
@@ -366,6 +271,7 @@ export default function RecruiterDashboard() {
           </div>
         )}
 
+        {/* SECTION DE BIENVENUE */}
         <section className="recruiter-welcome">
           <div>
             <span className="recruiter-welcome-label">
@@ -401,6 +307,7 @@ export default function RecruiterDashboard() {
           </div>
         </section>
 
+        {/* STATISTIQUES */}
         <section className="recruiter-stats-grid" aria-label="Statistiques">
           <StatCard
             title="Offres publiées"
@@ -435,15 +342,23 @@ export default function RecruiterDashboard() {
           />
         </section>
 
+        {/* CONTENU DU DASHBOARD */}
         <section className="recruiter-content-grid">
+
+          {/* CANDIDATURES RÉCENTES */}
           <article className="recruiter-panel recruiter-applications-panel">
             <div className="recruiter-panel-header">
               <div>
                 <h2>Candidatures récentes</h2>
-                <p>Les dernières candidatures reçues sur vos offres.</p>
+                <p>
+                  Les dernières candidatures reçues sur vos offres.
+                </p>
               </div>
 
-              <NavLink to="/recruiter/applications" className="recruiter-view-all">
+              <NavLink
+                to="/recruiter/applications"
+                className="recruiter-view-all"
+              >
                 Tout voir →
               </NavLink>
             </div>
@@ -455,7 +370,9 @@ export default function RecruiterDashboard() {
             ) : recentApplications.length === 0 ? (
               <div className="recruiter-empty-state">
                 <span aria-hidden="true">♙</span>
+
                 <h3>Aucune candidature pour le moment</h3>
+
                 <p>
                   Les candidatures reçues apparaîtront ici dès qu'un candidat
                   postulera à l'une de vos offres.
@@ -525,20 +442,28 @@ export default function RecruiterDashboard() {
             )}
           </article>
 
+          {/* ACTIONS RAPIDES */}
           <article className="recruiter-panel recruiter-quick-actions">
             <div className="recruiter-panel-header">
               <div>
                 <h2>Actions rapides</h2>
-                <p>Accédez directement aux fonctions essentielles.</p>
+                <p>
+                  Accédez directement aux fonctions essentielles.
+                </p>
               </div>
             </div>
 
-            <NavLink to="/recruiter/jobs/new" className="quick-action-item">
+            <NavLink
+              to="/recruiter/jobs/new"
+              className="quick-action-item"
+            >
               <span className="quick-action-icon">＋</span>
+
               <span>
                 <strong>Publier une offre</strong>
                 <small>Attirez de nouveaux candidats</small>
               </span>
+
               <span className="quick-action-arrow">→</span>
             </NavLink>
 
@@ -547,10 +472,12 @@ export default function RecruiterDashboard() {
               className="quick-action-item"
             >
               <span className="quick-action-icon">♙</span>
+
               <span>
                 <strong>Examiner les candidatures</strong>
                 <small>Consultez les profils reçus</small>
               </span>
+
               <span className="quick-action-arrow">→</span>
             </NavLink>
 
@@ -559,10 +486,46 @@ export default function RecruiterDashboard() {
               className="quick-action-item"
             >
               <span className="quick-action-icon">◷</span>
+
               <span>
                 <strong>Gérer les entretiens</strong>
                 <small>Organisez vos rendez-vous</small>
               </span>
+
+              <span className="quick-action-arrow">→</span>
+            </NavLink>
+
+            {/* NOUVELLE FONCTIONNALITÉ : ÉVALUATIONS */}
+            <NavLink
+              to="/recruiter/evaluations"
+              className="quick-action-item"
+            >
+              <span className="quick-action-icon">★</span>
+
+              <span>
+                <strong>Évaluer les candidatures</strong>
+                <small>
+                  Notez les profils et consultez vos recommandations
+                </small>
+              </span>
+
+              <span className="quick-action-arrow">→</span>
+            </NavLink>
+
+            {/* NOUVELLE FONCTIONNALITÉ : CRÉATION D'ÉVALUATION */}
+            <NavLink
+              to="/recruiter/evaluations/new"
+              className="quick-action-item"
+            >
+              <span className="quick-action-icon">＋</span>
+
+              <span>
+                <strong>Nouvelle évaluation</strong>
+                <small>
+                  Évaluez un candidat après examen ou entretien
+                </small>
+              </span>
+
               <span className="quick-action-arrow">→</span>
             </NavLink>
 
@@ -571,19 +534,26 @@ export default function RecruiterDashboard() {
               className="quick-action-item"
             >
               <span className="quick-action-icon">▧</span>
+
               <span>
                 <strong>Profil de l'entreprise</strong>
                 <small>Mettez à jour vos informations</small>
               </span>
+
               <span className="quick-action-arrow">→</span>
             </NavLink>
           </article>
         </section>
 
+        {/* PIED DE PAGE */}
         <footer className="recruiter-footer">
-          <p>© {new Date().getFullYear()} SunuJob AI — Conçu au Sénégal 🇸🇳</p>
+          <p>
+            © {new Date().getFullYear()} SunuJob AI — Conçu au Sénégal 🇸🇳
+          </p>
+
           <p>La technologie au service de l'emploi.</p>
         </footer>
+
       </main>
     </div>
   );

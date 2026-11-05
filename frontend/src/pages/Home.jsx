@@ -12,50 +12,64 @@ import {
   CheckCircle2,
   UserRound,
   ClipboardList,
-  BrainCircuit,
   GraduationCap,
   ShieldCheck,
   ChevronRight,
+  Target,
+  UserCheck,
+  FolderCheck,
+  TrendingUp,
+  Clock3,
+  BadgeCheck,
 } from "lucide-react";
 import api from "../api/axios";
 import "./Home.css";
 
 const features = [
   {
-    icon: BrainCircuit,
-    title: "Matching intelligent",
+    icon: Target,
+    title: "Des opportunités adaptées",
     description:
-      "Identifiez les opportunités correspondant à vos compétences, votre expérience et vos objectifs.",
+      "Découvrez des offres correspondant à vos compétences, votre expérience et vos objectifs professionnels.",
+    link: "/jobs",
+    linkText: "Découvrir les offres",
   },
   {
     icon: ClipboardList,
     title: "Suivi des candidatures",
     description:
-      "Centralisez vos démarches et consultez l'évolution de vos candidatures depuis votre espace.",
+      "Centralisez vos démarches et consultez facilement l'évolution de vos candidatures depuis votre espace.",
+    link: "/login",
+    linkText: "Suivre mes candidatures",
   },
   {
-    icon: UserRound,
+    icon: UserCheck,
     title: "Profil professionnel",
     description:
-      "Mettez en valeur votre parcours, vos qualifications et vos compétences auprès des recruteurs.",
+      "Valorisez votre parcours, vos diplômes et vos compétences auprès des entreprises qui recrutent.",
+    link: "/register",
+    linkText: "Créer mon profil",
   },
 ];
 
 const steps = [
   {
     number: "01",
+    icon: UserRound,
     title: "Créez votre compte",
     description:
-      "Inscrivez-vous et complétez votre profil avec vos informations professionnelles.",
+      "Inscrivez-vous gratuitement et renseignez vos informations professionnelles.",
   },
   {
     number: "02",
+    icon: Search,
     title: "Trouvez une opportunité",
     description:
-      "Consultez les offres publiées et identifiez celles qui correspondent à votre parcours.",
+      "Explorez les offres disponibles et choisissez celles qui correspondent à votre profil.",
   },
   {
     number: "03",
+    icon: FolderCheck,
     title: "Postulez et suivez",
     description:
       "Envoyez votre candidature et suivez son évolution depuis votre espace personnel.",
@@ -66,9 +80,9 @@ function formatSalary(job) {
   if (job.salary_display) return job.salary_display;
 
   if (job.salary_min != null || job.salary_max != null) {
+    const format = (value) => Number(value).toLocaleString("fr-FR");
     const min = job.salary_min;
     const max = job.salary_max;
-    const format = (value) => Number(value).toLocaleString("fr-FR");
 
     if (min != null && max != null) {
       return `${format(min)} – ${format(max)} FCFA`;
@@ -87,6 +101,10 @@ function getCompanyName(job) {
     job.recruiter_company?.name ||
     "Entreprise recruteuse"
   );
+}
+
+function getJobType(job) {
+  return job.job_type || job.contract_type || "Opportunité";
 }
 
 export default function Home() {
@@ -113,12 +131,15 @@ export default function Home() {
               ? data.jobs
               : [];
 
-        if (active) setJobs(list.slice(0, 3));
+        if (active) {
+          setJobs(list.slice(0, 3));
+        }
       } catch (error) {
         console.warn(
           "Impossible de charger les offres :",
           error.response?.status || error.message
         );
+
         if (active) setJobs([]);
       } finally {
         if (active) setLoadingJobs(false);
@@ -136,6 +157,7 @@ export default function Home() {
     event.preventDefault();
 
     const params = new URLSearchParams();
+
     if (search.trim()) params.set("search", search.trim());
     if (location.trim()) params.set("location", location.trim());
 
@@ -145,8 +167,11 @@ export default function Home() {
 
   return (
     <main className="home-page">
+
+      {/* HERO */}
       <section className="home-hero">
         <div className="home-hero-inner">
+
           <div className="home-hero-content">
             <div className="home-eyebrow">
               <span className="home-eyebrow-line" />
@@ -166,90 +191,81 @@ export default function Home() {
 
             <div className="home-hero-actions">
               <Link to="/jobs" className="home-button home-button-primary">
-                Consulter les offres <ArrowRight size={17} />
+                Consulter les offres
+                <ArrowRight size={18} />
               </Link>
+
               <Link to="/register" className="home-button home-button-outline">
                 Créer un compte
               </Link>
             </div>
 
             <div className="home-trust-line">
-              <ShieldCheck size={17} />
+              <ShieldCheck size={18} />
               Une plateforme dédiée aux parcours professionnels
             </div>
           </div>
 
-          <div className="home-hero-panel">
-            <div className="home-panel-header">
-              <div>
-                <span className="home-panel-overline">SUNUJOB AI</span>
-                <h2>Votre espace carrière</h2>
+          <div className="home-hero-visual">
+            <div className="home-hero-photo">
+              <div className="home-photo-overlay">
+                <span className="home-photo-label">
+                  VOTRE AVENIR PROFESSIONNEL
+                </span>
+                <h2>Chaque talent mérite une opportunité.</h2>
+                <p>
+                  Trouvez votre place dans le monde professionnel.
+                </p>
               </div>
-              <BriefcaseBusiness size={23} />
             </div>
 
-            <div className="home-panel-divider" />
-
-            <div className="home-panel-item">
-              <span className="home-panel-icon">
-                <Search size={19} />
+            <div className="home-floating-card home-floating-card-top">
+              <span className="home-floating-icon">
+                <BriefcaseBusiness size={20} />
               </span>
-              <div>
-                <strong>Recherche d'emploi</strong>
-                <small>Explorez les offres publiées</small>
-              </div>
-              <ChevronRight size={17} />
-            </div>
-
-            <div className="home-panel-item">
-              <span className="home-panel-icon">
-                <FileText size={19} />
+              <span>
+                <strong>Opportunités</strong>
+                <small>Explorez les offres</small>
               </span>
-              <div>
-                <strong>Profil et CV</strong>
-                <small>Présentez votre expérience</small>
-              </div>
-              <ChevronRight size={17} />
+              <CheckCircle2 size={18} className="home-floating-check" />
             </div>
 
-            <div className="home-panel-item">
-              <span className="home-panel-icon">
-                <ClipboardList size={19} />
+            <div className="home-floating-card home-floating-card-bottom">
+              <span className="home-floating-icon home-floating-icon-green">
+                <UserCheck size={20} />
               </span>
-              <div>
-                <strong>Candidatures</strong>
-                <small>Suivez vos démarches</small>
-              </div>
-              <ChevronRight size={17} />
-            </div>
-
-            <div className="home-panel-footer">
-              <CheckCircle2 size={16} />
-              Un parcours professionnel mieux organisé
+              <span>
+                <strong>Profil professionnel</strong>
+                <small>Valorisez vos compétences</small>
+              </span>
             </div>
           </div>
         </div>
 
         <div className="home-hero-bottom">
-          <span>EMPLOI</span>
-          <span>RECRUTEMENT</span>
-          <span>GESTION DES CANDIDATURES</span>
-          <span>INTELLIGENCE ARTIFICIELLE</span>
+          <span><BriefcaseBusiness size={15} /> EMPLOI</span>
+          <span><Building2 size={15} /> RECRUTEMENT</span>
+          <span><FileText size={15} /> CANDIDATURES</span>
+          <span><Users size={15} /> TALENTS ET ENTREPRISES</span>
         </div>
       </section>
 
+      {/* RECHERCHE */}
       <section className="home-search-section">
         <div className="home-search-heading">
-          <div>
-            <span className="home-section-kicker">RECHERCHE D'OPPORTUNITÉS</span>
-            <h2>Trouvez votre prochain emploi</h2>
-            <p>Recherchez par métier, compétence ou localisation.</p>
-          </div>
+          <span className="home-section-kicker">
+            RECHERCHE D'OPPORTUNITÉS
+          </span>
+          <h2>Trouvez votre prochain emploi</h2>
+          <p>
+            Recherchez par métier, compétence ou localisation.
+          </p>
         </div>
 
         <form className="home-search-form" onSubmit={handleSearch}>
           <label className="home-search-field">
-            <Search size={20} />
+            <Search size={21} />
+
             <span className="home-search-input-wrap">
               <span>Poste, métier ou mot-clé</span>
               <input
@@ -262,7 +278,8 @@ export default function Home() {
           </label>
 
           <label className="home-search-field">
-            <MapPin size={20} />
+            <MapPin size={21} />
+
             <span className="home-search-input-wrap">
               <span>Localisation</span>
               <input
@@ -274,19 +291,28 @@ export default function Home() {
             </span>
           </label>
 
-          <button className="home-button home-button-primary" type="submit">
-            Rechercher <Search size={17} />
+          <button
+            className="home-button home-button-primary home-search-button"
+            type="submit"
+          >
+            Rechercher
+            <Search size={18} />
           </button>
         </form>
       </section>
 
-      <section className="home-section home-features-section">
+      {/* FONCTIONNALITÉS */}
+      <section className="home-section home-features-section" id="fonctionnalites">
         <div className="home-section-heading">
-          <span className="home-section-kicker">UNE PLATEFORME, PLUSIEURS SERVICES</span>
+          <span className="home-section-kicker">
+            UNE PLATEFORME, PLUSIEURS SERVICES
+          </span>
+
           <h2>Des outils pour chaque étape du recrutement</h2>
+
           <p>
-            Des fonctionnalités pensées pour simplifier les démarches des
-            candidats et accompagner le travail des recruteurs.
+            Des fonctionnalités pensées pour simplifier les démarches
+            des candidats et accompagner le travail des recruteurs.
           </p>
         </div>
 
@@ -297,12 +323,15 @@ export default function Home() {
             return (
               <article className="home-feature-card" key={feature.title}>
                 <div className="home-feature-icon">
-                  <Icon size={23} strokeWidth={1.8} />
+                  <Icon size={25} strokeWidth={1.8} />
                 </div>
+
                 <h3>{feature.title}</h3>
                 <p>{feature.description}</p>
-                <Link to="/register" className="home-feature-link">
-                  En savoir plus <ArrowRight size={16} />
+
+                <Link to={feature.link} className="home-feature-link">
+                  {feature.linkText}
+                  <ArrowRight size={16} />
                 </Link>
               </article>
             );
@@ -310,20 +339,30 @@ export default function Home() {
         </div>
       </section>
 
+      {/* OFFRES RÉCENTES */}
       <section className="home-jobs-section">
         <div className="home-section-heading home-jobs-heading">
           <div>
-            <span className="home-section-kicker">OPPORTUNITÉS PROFESSIONNELLES</span>
+            <span className="home-section-kicker">
+              OPPORTUNITÉS PROFESSIONNELLES
+            </span>
+
             <h2>Offres d'emploi récentes</h2>
-            <p>Découvrez les dernières opportunités publiées sur la plateforme.</p>
+
+            <p>
+              Découvrez les dernières opportunités publiées sur la plateforme.
+            </p>
           </div>
+
           <Link to="/jobs" className="home-text-link">
-            Toutes les offres <ArrowRight size={16} />
+            Toutes les offres
+            <ArrowRight size={17} />
           </Link>
         </div>
 
         {loadingJobs ? (
           <div className="home-jobs-message" role="status">
+            <span className="home-loader" />
             Chargement des offres disponibles...
           </div>
         ) : jobs.length > 0 ? (
@@ -332,46 +371,70 @@ export default function Home() {
               <article className="home-job-card" key={job.id}>
                 <div className="home-job-card-top">
                   <div className="home-job-company-icon">
-                    <Building2 size={22} />
+                    <Building2 size={23} />
                   </div>
+
                   <span className="home-job-badge">
-                    {job.job_type || job.contract_type || "Opportunité"}
+                    {getJobType(job)}
                   </span>
                 </div>
 
                 <h3>{job.title || "Offre d'emploi"}</h3>
-                <p className="home-job-company">{getCompanyName(job)}</p>
+
+                <p className="home-job-company">
+                  <Building2 size={15} />
+                  {getCompanyName(job)}
+                </p>
 
                 <div className="home-job-meta">
-                  <span><MapPin size={15} /> {job.location || job.city || "Lieu à préciser"}</span>
-                  <span><BriefcaseBusiness size={15} /> {formatSalary(job)}</span>
+                  <span>
+                    <MapPin size={15} />
+                    {job.location || job.city || "Lieu à préciser"}
+                  </span>
+
+                  <span>
+                    <BriefcaseBusiness size={15} />
+                    {formatSalary(job)}
+                  </span>
                 </div>
 
                 <Link to={`/jobs/${job.id}`} className="home-job-link">
-                  Consulter l'offre <ArrowRight size={16} />
+                  Consulter l'offre
+                  <ArrowRight size={16} />
                 </Link>
               </article>
             ))}
           </div>
         ) : (
           <div className="home-jobs-empty">
-            <BriefcaseBusiness size={30} />
+            <div className="home-empty-icon">
+              <BriefcaseBusiness size={30} />
+            </div>
+
             <h3>Aucune offre à afficher pour le moment</h3>
+
             <p>
               De nouvelles opportunités seront publiées prochainement.
-              Vous pouvez consulter la liste complète des offres.
+              Consultez la liste complète des offres disponibles.
             </p>
+
             <Link to="/jobs" className="home-button home-button-primary">
-              Parcourir les offres <ArrowRight size={16} />
+              Parcourir les offres
+              <ArrowRight size={17} />
             </Link>
           </div>
         )}
       </section>
 
+      {/* ÉTAPES */}
       <section className="home-section home-steps-section">
         <div className="home-section-heading">
-          <span className="home-section-kicker">COMMENT ÇA FONCTIONNE</span>
+          <span className="home-section-kicker">
+            COMMENT ÇA FONCTIONNE
+          </span>
+
           <h2>Un parcours simple et structuré</h2>
+
           <p>
             Quelques étapes suffisent pour commencer votre recherche
             d'opportunités professionnelles.
@@ -379,49 +442,85 @@ export default function Home() {
         </div>
 
         <div className="home-steps-grid">
-          {steps.map((step) => (
-            <article className="home-step-card" key={step.number}>
-              <span className="home-step-number">{step.number}</span>
-              <h3>{step.title}</h3>
-              <p>{step.description}</p>
-            </article>
-          ))}
+          {steps.map((step) => {
+            const Icon = step.icon;
+
+            return (
+              <article className="home-step-card" key={step.number}>
+                <div className="home-step-top">
+                  <span className="home-step-number">{step.number}</span>
+                  <span className="home-step-icon">
+                    <Icon size={22} />
+                  </span>
+                </div>
+
+                <h3>{step.title}</h3>
+                <p>{step.description}</p>
+              </article>
+            );
+          })}
         </div>
       </section>
 
-      <section className="home-recruiter-section">
+      {/* ESPACE RECRUTEUR */}
+      <section className="home-recruiter-section" id="apropos">
         <div className="home-recruiter-content">
-          <span className="home-section-kicker">ESPACE ENTREPRISE</span>
-          <h2>Vous recrutez ? Gérez vos candidatures efficacement.</h2>
+          <span className="home-section-kicker">
+            <Building2 size={15} />
+            ESPACE ENTREPRISE
+          </span>
+
+          <h2>Vous recrutez ? Trouvez les talents qu'il vous faut.</h2>
+
           <p>
             Publiez vos offres, consultez les profils reçus et organisez
             le suivi de vos recrutements depuis un espace dédié aux entreprises.
           </p>
+
           <Link to="/register" className="home-button home-button-white">
-            Accéder à la plateforme <ArrowRight size={17} />
+            Accéder à la plateforme
+            <ArrowRight size={17} />
           </Link>
         </div>
 
         <div className="home-recruiter-details">
           <div>
-            <Building2 size={21} />
-            <span>Gestion des offres d'emploi</span>
+            <span><BriefcaseBusiness size={21} /></span>
+            <strong>Gestion des offres d'emploi</strong>
           </div>
+
           <div>
-            <Users size={21} />
-            <span>Consultation des candidatures</span>
+            <span><Users size={21} /></span>
+            <strong>Consultation des candidatures</strong>
           </div>
+
           <div>
-            <GraduationCap size={21} />
-            <span>Suivi des profils et compétences</span>
+            <span><GraduationCap size={21} /></span>
+            <strong>Suivi des profils et compétences</strong>
+          </div>
+
+          <div>
+            <span><TrendingUp size={21} /></span>
+            <strong>Organisation du recrutement</strong>
           </div>
         </div>
       </section>
 
+      {/* CTA FINAL */}
       <section className="home-final-cta">
-        <div>
-          <span className="home-section-kicker">REJOIGNEZ SUNUJOB AI</span>
-          <h2>Donnez une nouvelle dimension à votre parcours professionnel.</h2>
+        <div className="home-final-icon">
+          <BadgeCheck size={28} />
+        </div>
+
+        <div className="home-final-content">
+          <span className="home-section-kicker">
+            REJOIGNEZ SUNUJOB AI
+          </span>
+
+          <h2>
+            Donnez une nouvelle dimension à votre parcours professionnel.
+          </h2>
+
           <p>
             Créez votre compte pour accéder aux opportunités et aux outils
             de recrutement de la plateforme.
@@ -430,13 +529,17 @@ export default function Home() {
 
         <div className="home-final-actions">
           <Link to="/register" className="home-button home-button-primary">
-            Créer mon compte <ArrowRight size={17} />
+            Créer mon compte
+            <ArrowRight size={17} />
           </Link>
+
           <Link to="/jobs" className="home-final-link">
             Consulter les offres
+            <ChevronRight size={17} />
           </Link>
         </div>
       </section>
+
     </main>
   );
 }

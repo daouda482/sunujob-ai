@@ -1,5 +1,5 @@
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import "./Notifications.css";
@@ -13,7 +13,7 @@ function formatDate(value) {
 
   return new Intl.DateTimeFormat("fr-FR", {
     day: "2-digit",
-    month: "long",
+    month: "short",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
@@ -33,22 +33,40 @@ function getNotificationIcon(type) {
   }
 }
 
+function getNotificationCategory(type) {
+  switch (type) {
+    case "APPLICATION":
+      return "Candidature";
+    case "APPLICATION_STATUS":
+      return "Suivi de candidature";
+    case "INTERVIEW":
+      return "Entretien";
+    default:
+      return "Information";
+  }
+}
+
 export default function Notifications() {
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [actionLoading, setActionLoading] = useState(false);
   const navigate = useNavigate();
 
-  const loadNotifications = useCallback(async () => {
-    setLoading(true);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState("ALL");
+  const [processingId, setProcessingId] = useState(null);
+
+  const loadNotifications = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoading(true);
+    else setRefreshing(true);
+
     setError("");
 
     try {
       const response = await api.get("notifications/");
       const data = response.data;
 
-      // Compatible avec une liste DRF classique ou paginée.
       const items = Array.isArray(data)
         ? data
         : Array.isArray(data?.results)
@@ -57,28 +75,53 @@ export default function Notifications() {
 
       setNotifications(items);
     } catch (err) {
-      console.error("Erreur de chargement des notifications :", err);
+      console.error("Erreur de chargement :", err);
 
       setError(
         err.response?.status === 401
           ? "Votre session a expiré. Veuillez vous reconnecter."
-          : "Impossible de charger les notifications. Vérifiez votre connexion et réessayez."
+          : "Impossible de charger les notifications. Veuillez réessayer."
       );
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
     loadNotifications();
+
+    const interval = window.setInterval(() => {
+      loadNotifications(false);
+    }, 30000);
+
+    return () => window.clearInterval(interval);
   }, [loadNotifications]);
 
   const unreadCount = notifications.filter(
-    (notification) => !notification.is_read
+    (item) => !item.is_read
   ).length;
 
+  const readCount = notifications.length - unreadCount;
+
+  const filteredNotifications = useMemo(() => {
+    if (selectedFilter === "UNREAD") {
+      return notifications.filter((item) => !item.is_read);
+    }
+
+    if (selectedFilter === "READ") {
+      return notifications.filter((item) => item.is_read);
+    }
+
+    return notifications;
+  }, [notifications, selectedFilter]);
+
   async function markAsRead(notification) {
-    if (notification.is_read) return;
+    if (notification.is_read || processingId === notification.id) {
+      return true;
+    }
+
+    setProcessingId(notification.id);
 
     try {
       await api.patch(`notifications/${notification.id}/read/`);
@@ -90,9 +133,14 @@ export default function Notifications() {
             : item
         )
       );
+
+      return true;
     } catch (err) {
-      console.error("Erreur lors du marquage comme lu :", err);
+      console.error("Erreur de lecture :", err);
       setError("Impossible de marquer cette notification comme lue.");
+      return false;
+    } finally {
+      setProcessingId(null);
     }
   }
 
@@ -106,10 +154,13 @@ export default function Notifications() {
       await api.post("notifications/mark-all-read/");
 
       setNotifications((current) =>
-        current.map((item) => ({ ...item, is_read: true }))
+        current.map((item) => ({
+          ...item,
+          is_read: true,
+        }))
       );
     } catch (err) {
-      console.error("Erreur lors du marquage global :", err);
+      console.error("Erreur de lecture globale :", err);
       setError("Impossible de marquer toutes les notifications comme lues.");
     } finally {
       setActionLoading(false);
@@ -118,12 +169,14 @@ export default function Notifications() {
 
   async function openNotification(notification) {
     if (!notification.is_read) {
-      await markAsRead(notification);
+      const success = await markAsRead(notification);
+
+      if (!success) return;
     }
 
     const target = notification.related_url?.trim();
 
-    // N'autoriser que les chemins internes à l'application.
+    // Accepter uniquement les chemins internes.
     if (target && target.startsWith("/") && !target.startsWith("//")) {
       navigate(target);
     }
@@ -134,30 +187,63 @@ export default function Notifications() {
       <section className="sj-notifications-hero">
         <div className="sj-notifications-hero-content">
           <span className="sj-notifications-eyebrow">
-            SUNUJOB AI · CENTRE DE NOTIFICATIONS
+            SUNUJOB AI / ESPACE PERSONNEL
           </span>
 
-          <h1>Vos notifications</h1>
+          <h1>Centre de notifications</h1>
 
           <p>
-            Retrouvez les nouvelles candidatures, les évolutions de vos
-            dossiers et les informations importantes de votre espace.
+            Restez informé de vos candidatures, entretiens et activités
+            importantes sur SunuJob AI.
           </p>
+
+          <div className="sj-hero-status">
+            <span className="sj-status-dot" />
+            Votre espace est à jour
+          </div>
         </div>
 
-        <div className="sj-notifications-hero-icon" aria-hidden="true">
+        <div className="sj-notifications-hero-icon">
           <span>🔔</span>
+          {unreadCount > 0 && (
+            <span className="sj-hero-count">{unreadCount}</span>
+          )}
         </div>
+      </section>
+
+      <section className="sj-notification-stats">
+        <article className="sj-stat-card">
+          <div className="sj-stat-icon total">📨</div>
+          <div>
+            <span>Total des notifications</span>
+            <strong>{notifications.length}</strong>
+          </div>
+        </article>
+
+        <article className="sj-stat-card">
+          <div className="sj-stat-icon unread">🔵</div>
+          <div>
+            <span>Non lues</span>
+            <strong>{unreadCount}</strong>
+          </div>
+        </article>
+
+        <article className="sj-stat-card">
+          <div className="sj-stat-icon read">✓</div>
+          <div>
+            <span>Déjà consultées</span>
+            <strong>{readCount}</strong>
+          </div>
+        </article>
       </section>
 
       <section className="sj-notifications-panel">
         <div className="sj-notifications-toolbar">
-          <div>
-            <h2>Centre de notifications</h2>
+          <div className="sj-toolbar-heading">
+            <span className="sj-section-label">VOTRE ACTIVITÉ</span>
+            <h2>Vos notifications</h2>
             <p>
-              {loading
-                ? "Chargement en cours..."
-                : `${notifications.length} notification(s) · ${unreadCount} non lue(s)`}
+              Retrouvez ici toutes les informations concernant votre compte.
             </p>
           </div>
 
@@ -167,15 +253,55 @@ export default function Notifications() {
             onClick={markAllAsRead}
             disabled={loading || actionLoading || unreadCount === 0}
           >
-            {actionLoading ? "Traitement..." : "Tout marquer comme lu"}
+            {actionLoading ? "Traitement..." : "✓ Tout marquer comme lu"}
+          </button>
+        </div>
+
+        <div className="sj-notifications-filters">
+          <div className="sj-filter-tabs">
+            <button
+              type="button"
+              className={selectedFilter === "ALL" ? "active" : ""}
+              onClick={() => setSelectedFilter("ALL")}
+            >
+              Toutes
+              <span>{notifications.length}</span>
+            </button>
+
+            <button
+              type="button"
+              className={selectedFilter === "UNREAD" ? "active" : ""}
+              onClick={() => setSelectedFilter("UNREAD")}
+            >
+              Non lues
+              <span>{unreadCount}</span>
+            </button>
+
+            <button
+              type="button"
+              className={selectedFilter === "READ" ? "active" : ""}
+              onClick={() => setSelectedFilter("READ")}
+            >
+              Lues
+              <span>{readCount}</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            className="sj-refresh-notifications"
+            onClick={() => loadNotifications(false)}
+            disabled={refreshing}
+          >
+            <span className={refreshing ? "sj-refresh-spinning" : ""}>↻</span>
+            {refreshing ? "Actualisation..." : "Actualiser"}
           </button>
         </div>
 
         {error && (
           <div className="sj-notifications-error" role="alert">
-            <span>{error}</span>
-
-            <button type="button" onClick={loadNotifications}>
+            <span>⚠️ {error}</span>
+            <button type="button" onClick={() => loadNotifications()}>
               Réessayer
             </button>
           </div>
@@ -184,36 +310,67 @@ export default function Notifications() {
         {loading ? (
           <div className="sj-notifications-state">
             <span className="sj-notifications-spinner" />
-            <p>Chargement de vos notifications...</p>
+            <h3>Chargement de vos notifications</h3>
+            <p>Veuillez patienter quelques instants...</p>
           </div>
-        ) : notifications.length === 0 ? (
+        ) : filteredNotifications.length === 0 ? (
           <div className="sj-notifications-state">
-            <div className="sj-empty-notifications-icon">🔔</div>
-            <h3>Tout est calme pour le moment</h3>
+            <div className="sj-empty-notifications-icon">
+              {selectedFilter === "UNREAD" ? "✓" : "🔔"}
+            </div>
+
+            <h3>
+              {selectedFilter === "UNREAD"
+                ? "Aucune notification non lue"
+                : selectedFilter === "READ"
+                  ? "Aucune notification consultée"
+                  : "Aucune notification pour le moment"}
+            </h3>
+
             <p>
-              Vos nouvelles notifications apparaîtront ici dès qu'une
-              activité sera enregistrée.
+              Les nouvelles informations concernant vos candidatures et
+              entretiens apparaîtront automatiquement ici.
             </p>
+
+            {selectedFilter !== "ALL" && (
+              <button
+                type="button"
+                className="sj-empty-action"
+                onClick={() => setSelectedFilter("ALL")}
+              >
+                Voir toutes les notifications
+              </button>
+            )}
           </div>
         ) : (
           <div className="sj-notifications-list">
-            {notifications.map((notification) => (
+            {filteredNotifications.map((notification) => (
               <article
                 key={notification.id}
                 className={`sj-notification-item ${
                   notification.is_read ? "is-read" : "is-unread"
                 }`}
               >
-                <div className="sj-notification-icon" aria-hidden="true">
+                <div className="sj-notification-icon">
                   {getNotificationIcon(notification.notification_type)}
                 </div>
 
                 <div className="sj-notification-content">
                   <div className="sj-notification-heading">
-                    <h3>{notification.title}</h3>
+                    <div>
+                      <span className="sj-notification-category">
+                        {getNotificationCategory(
+                          notification.notification_type
+                        )}
+                      </span>
+
+                      <h3>{notification.title}</h3>
+                    </div>
 
                     {!notification.is_read && (
-                      <span className="sj-unread-label">Nouveau</span>
+                      <span className="sj-unread-label">
+                        <span /> Nouveau
+                      </span>
                     )}
                   </div>
 
@@ -221,33 +378,36 @@ export default function Notifications() {
                     {notification.message}
                   </p>
 
-                  <time
-                    className="sj-notification-date"
-                    dateTime={notification.created_at}
-                  >
-                    {formatDate(notification.created_at)}
-                  </time>
+                  <div className="sj-notification-bottom">
+                    <time dateTime={notification.created_at}>
+                      <span>◷</span>
+                      {formatDate(notification.created_at)}
+                    </time>
 
-                  <div className="sj-notification-actions">
-                    {!notification.is_read && (
-                      <button
-                        type="button"
-                        className="sj-notification-text-btn"
-                        onClick={() => markAsRead(notification)}
-                      >
-                        Marquer comme lue
-                      </button>
-                    )}
+                    <div className="sj-notification-actions">
+                      {!notification.is_read && (
+                        <button
+                          type="button"
+                          className="sj-notification-text-btn"
+                          disabled={processingId === notification.id}
+                          onClick={() => markAsRead(notification)}
+                        >
+                          {processingId === notification.id
+                            ? "Traitement..."
+                            : "Marquer comme lue"}
+                        </button>
+                      )}
 
-                    {notification.related_url && (
-                      <button
-                        type="button"
-                        className="sj-notification-open-btn"
-                        onClick={() => openNotification(notification)}
-                      >
-                        Voir les détails <span aria-hidden="true">→</span>
-                      </button>
-                    )}
+                      {notification.related_url && (
+                        <button
+                          type="button"
+                          className="sj-notification-open-btn"
+                          onClick={() => openNotification(notification)}
+                        >
+                          Voir les détails <span>→</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </article>
@@ -255,17 +415,12 @@ export default function Notifications() {
           </div>
         )}
 
-        {!loading && notifications.length > 0 && (
-          <div className="sj-notifications-footer">
-            <button
-              type="button"
-              onClick={loadNotifications}
-              className="sj-refresh-notifications"
-            >
-              ↻ Actualiser les notifications
-            </button>
-          </div>
-        )}
+        <div className="sj-notifications-footer">
+          <span>
+            🔄 Actualisation automatique toutes les 30 secondes
+          </span>
+          <span>Conçu au Sénégal 🇸🇳</span>
+        </div>
       </section>
     </main>
   );

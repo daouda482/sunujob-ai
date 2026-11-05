@@ -1,6 +1,11 @@
 
 import React, { Component } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 
 // =====================================================
 // COMPOSANTS COMMUNS
@@ -33,7 +38,6 @@ import Recommendations from "./pages/candidate/Recommendations.jsx";
 import CVAnalysis from "./pages/candidate/CVAnalysis.jsx";
 import AICoach from "./pages/candidate/AICoach.jsx";
 import CandidateCV from "./pages/candidate/CandidateCV.jsx";
-
 import Favorites from "./pages/candidate/Favorites.jsx";
 import JobAlerts from "./pages/candidate/JobAlerts.jsx";
 
@@ -58,6 +62,10 @@ import RecruiterInterviews from "./pages/recruiter/RecruiterInterviews.jsx";
 import RecruiterCompanies from "./pages/recruiter/RecruiterCompanies.jsx";
 import RecruiterStatistics from "./pages/recruiter/RecruiterStatistics.jsx";
 import CompanyVerification from "./pages/recruiter/CompanyVerification.jsx";
+
+import Evaluations from "./pages/recruiter/Evaluations.jsx";
+import EvaluationForm from "./pages/recruiter/EvaluationForm.jsx";
+import EvaluationDetails from "./pages/recruiter/EvaluationDetails.jsx";
 
 // =====================================================
 // PAGES ADMINISTRATEUR
@@ -105,11 +113,7 @@ class AppErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error(
-      "Erreur React dans SunuJob AI :",
-      error,
-      info
-    );
+    console.error("Erreur React dans SunuJob AI :", error, info);
   }
 
   render() {
@@ -124,10 +128,7 @@ class AppErrorBoundary extends Component {
           }}
         >
           <h1>Une erreur empêche l'affichage</h1>
-
-          <p>
-            Un composant de SunuJob AI a rencontré une erreur.
-          </p>
+          <p>Un composant de SunuJob AI a rencontré une erreur.</p>
 
           <pre
             style={{
@@ -153,26 +154,21 @@ class AppErrorBoundary extends Component {
 }
 
 // =====================================================
-// GESTION DES ROUTES DE L'APPLICATION
+// ROUTES DE L'APPLICATION
 // =====================================================
 
 function AppRoutes() {
   const location = useLocation();
 
-  // Pages recruteur
   const isRecruiterPage =
     location.pathname.startsWith("/recruiter");
 
-  // Pages administrateur
   const isAdminPage =
     location.pathname.startsWith("/admin");
 
-  // Toutes les pages de l'espace candidat
   const isCandidatePage =
     location.pathname.startsWith("/candidate");
 
-  // Afficher Navbar et Footer uniquement sur les pages
-  // qui utilisent la présentation publique.
   const showPublicLayout =
     !isRecruiterPage &&
     !isAdminPage &&
@@ -180,309 +176,293 @@ function AppRoutes() {
 
   return (
     <>
-      {/* Navigation publique */}
       {showPublicLayout && <Navbar />}
 
-      {/* Navigation administrateur */}
+      {/* Navigation latérale administrateur unique */}
       {isAdminPage && <AdminNavigation />}
 
-      <Routes>
-        {/* =========================================
-            PAGES PUBLIQUES
-        ========================================= */}
+      {/* Contenu principal */}
+      <div className={isAdminPage ? "admin-main-content" : undefined}>
+        <Routes>
+          {/* PAGES PUBLIQUES */}
 
-        <Route path="/" element={<Home />} />
-
-        <Route path="/login" element={<Login />} />
-
-        <Route path="/register" element={<Register />} />
-
-        <Route path="/jobs" element={<Jobs />} />
-
-        <Route path="/jobs/:id" element={<JobDetails />} />
-
-        <Route
-          path="/notifications"
-          element={<NotificationsPage />}
-        />
-
-        {/* =========================================
-            ESPACE CANDIDAT
-        ========================================= */}
-
-        <Route
-          element={
-            <ProtectedRoute allowedRoles={["CANDIDATE"]} />
-          }
-        >
-          {/* Tableau de bord */}
-          <Route
-            path="/candidate/dashboard"
-            element={<CandidateDashboard />}
-          />
-
-          {/* Profil candidat */}
-          <Route
-            path="/candidate/profile"
-            element={<CandidateProfile />}
-          />
-
-          {/* Gestion du CV */}
-          <Route
-            path="/candidate/cv"
-            element={<CandidateCV />}
-          />
-
-          {/* Analyse du CV par IA */}
-          <Route
-            path="/candidate/cv-analysis"
-            element={<CVAnalysis />}
-          />
-
-          {/* Candidatures */}
-          <Route
-            path="/candidate/applications"
-            element={<Applications />}
-          />
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/jobs" element={<Jobs />} />
+          <Route path="/jobs/:id" element={<JobDetails />} />
 
           <Route
-            path="/application-success"
-            element={<ApplicationSuccess />}
-          />
-
-          <Route
-            path="/my-applications"
-            element={<MyApplications />}
-          />
-
-          {/* Notifications candidat */}
-          <Route
-            path="/candidate/notifications"
+            path="/notifications"
             element={<NotificationsPage />}
           />
 
-          {/* Recommandations IA */}
-          <Route
-            path="/candidate/recommendations"
-            element={<Recommendations />}
-          />
+          {/* ESPACE CANDIDAT */}
 
-          {/* Entretiens */}
           <Route
-            path="/candidate/interviews"
-            element={<Interviews />}
-          />
-
-          {/* Coach carrière IA */}
-          <Route
-            path="/candidate/ai-coach"
-            element={<AICoach />}
-          />
-
-          {/* Formulaire de candidature */}
-          <Route
-            path="/jobs/:id/apply"
-            element={<Apply />}
-          />
-
-          {/* Favoris */}
-          <Route
-            path="/candidate/favorites"
-            element={<Favorites />}
-          />
-
-          {/* Alertes emploi */}
-          <Route
-            path="/candidate/job-alerts"
-            element={<JobAlerts />}
-          />
-
-          {/* Paramètres candidat */}
-          <Route
-            path="/candidate/settings"
             element={
-              <ComingSoon title="Paramètres de votre espace candidat" />
+              <ProtectedRoute allowedRoles={["CANDIDATE"]} />
             }
-          />
-        </Route>
-
-        {/* =========================================
-            ESPACE RECRUTEUR
-        ========================================= */}
-
-        <Route
-          element={
-            <ProtectedRoute allowedRoles={["RECRUITER"]} />
-          }
-        >
-          <Route
-            path="/recruiter/dashboard"
-            element={<RecruiterDashboard />}
-          />
-
-          <Route
-            path="/recruiter/jobs"
-            element={<RecruiterJobs />}
-          />
-
-          <Route
-            path="/recruiter/jobs/new"
-            element={<RecruiterJobForm />}
-          />
-
-          <Route
-            path="/recruiter/jobs/:id/edit"
-            element={<RecruiterJobForm />}
-          />
-
-          <Route
-            path="/recruiter/applications"
-            element={<RecruiterApplications />}
-          />
-
-          <Route
-            path="/recruiter/statistics"
-            element={<RecruiterStatistics />}
-          />
-
-          <Route
-            path="/recruiter/interviews"
-            element={<RecruiterInterviews />}
-          />
-
-          <Route
-            path="/recruiter/company"
-            element={<RecruiterCompanies />}
-          />
-
-          <Route
-            path="/recruiter/company-verification"
-            element={<CompanyVerification />}
-          />
-        </Route>
-
-        {/* =========================================
-            ESPACE ORGANISME DE FORMATION
-        ========================================= */}
-
-        <Route
-          element={
-            <ProtectedRoute
-              allowedRoles={["TRAINING_PROVIDER"]}
+          >
+            <Route
+              path="/candidate/dashboard"
+              element={<CandidateDashboard />}
             />
-          }
-        >
+
+            <Route
+              path="/candidate/profile"
+              element={<CandidateProfile />}
+            />
+
+            <Route
+              path="/candidate/cv"
+              element={<CandidateCV />}
+            />
+
+            <Route
+              path="/candidate/cv-analysis"
+              element={<CVAnalysis />}
+            />
+
+            <Route
+              path="/candidate/applications"
+              element={<Applications />}
+            />
+
+            <Route
+              path="/application-success"
+              element={<ApplicationSuccess />}
+            />
+
+            <Route
+              path="/my-applications"
+              element={<MyApplications />}
+            />
+
+            <Route
+              path="/candidate/notifications"
+              element={<NotificationsPage />}
+            />
+
+            <Route
+              path="/candidate/recommendations"
+              element={<Recommendations />}
+            />
+
+            <Route
+              path="/candidate/interviews"
+              element={<Interviews />}
+            />
+
+            <Route
+              path="/candidate/ai-coach"
+              element={<AICoach />}
+            />
+
+            <Route
+              path="/jobs/:id/apply"
+              element={<Apply />}
+            />
+
+            <Route
+              path="/candidate/favorites"
+              element={<Favorites />}
+            />
+
+            <Route
+              path="/candidate/job-alerts"
+              element={<JobAlerts />}
+            />
+
+            <Route
+              path="/candidate/settings"
+              element={
+                <ComingSoon title="Paramètres de votre espace candidat" />
+              }
+            />
+          </Route>
+
+          {/* ESPACE RECRUTEUR */}
+
           <Route
-            path="/training-provider/dashboard"
             element={
-              <ComingSoon title="Espace organisme de formation" />
+              <ProtectedRoute allowedRoles={["RECRUITER"]} />
             }
-          />
-        </Route>
-
-        {/* =========================================
-            CENTRE DE SUPPORT
-        ========================================= */}
-
-        <Route
-          element={
-            <ProtectedRoute
-              allowedRoles={["CANDIDATE", "RECRUITER"]}
+          >
+            <Route
+              path="/recruiter/dashboard"
+              element={<RecruiterDashboard />}
             />
-          }
-        >
-          <Route
-            path="/support"
-            element={<SupportCenter />}
-          />
-        </Route>
 
-        {/* =========================================
-            ESPACE ADMINISTRATEUR
-        ========================================= */}
+            <Route
+              path="/recruiter/jobs"
+              element={<RecruiterJobs />}
+            />
 
-        <Route
-          element={
-            <ProtectedRoute allowedRoles={["ADMIN"]} />
-          }
-        >
-          <Route
-            path="/admin"
-            element={<AdminDashboard />}
-          />
+            <Route
+              path="/recruiter/jobs/new"
+              element={<RecruiterJobForm />}
+            />
 
-          <Route
-            path="/admin/dashboard"
-            element={<AdminDashboard />}
-          />
+            <Route
+              path="/recruiter/jobs/:id/edit"
+              element={<RecruiterJobForm />}
+            />
 
-          <Route
-            path="/admin/users"
-            element={<AdminUsers />}
-          />
+            <Route
+              path="/recruiter/applications"
+              element={<RecruiterApplications />}
+            />
 
-          <Route
-            path="/admin/companies"
-            element={<AdminCompanies />}
-          />
+            <Route
+              path="/recruiter/statistics"
+              element={<RecruiterStatistics />}
+            />
 
-          <Route
-            path="/admin/jobs"
-            element={<AdminJobs />}
-          />
+            <Route
+              path="/recruiter/interviews"
+              element={<RecruiterInterviews />}
+            />
 
-          <Route
-            path="/admin/applications"
-            element={<AdminApplications />}
-          />
+            {/* Évaluations : routes déclarées une seule fois */}
+            <Route
+              path="/recruiter/evaluations"
+              element={<Evaluations />}
+            />
 
-          <Route
-            path="/admin/notifications"
-            element={<AdminNotifications />}
-          />
+            <Route
+              path="/recruiter/evaluations/new"
+              element={<EvaluationForm />}
+            />
 
-          <Route
-            path="/admin/reports"
-            element={<AdminReports />}
-          />
+            <Route
+              path="/recruiter/evaluations/:id"
+              element={<EvaluationDetails />}
+            />
 
-          <Route
-            path="/admin/audit-logs"
-            element={<AdminAuditLogs />}
-          />
+            <Route
+              path="/recruiter/company"
+              element={<RecruiterCompanies />}
+            />
+
+            <Route
+              path="/recruiter/company-verification"
+              element={<CompanyVerification />}
+            />
+          </Route>
+
+          {/* ORGANISME DE FORMATION */}
 
           <Route
-            path="/admin/moderation"
-            element={<AdminModeration />}
-          />
+            element={
+              <ProtectedRoute allowedRoles={["TRAINING_PROVIDER"]} />
+            }
+          >
+            <Route
+              path="/training-provider/dashboard"
+              element={
+                <ComingSoon title="Espace organisme de formation" />
+              }
+            />
+          </Route>
+
+          {/* SUPPORT */}
 
           <Route
-            path="/admin/verifications"
-            element={<AdminVerifications />}
-          />
+            element={
+              <ProtectedRoute
+                allowedRoles={["CANDIDATE", "RECRUITER"]}
+              />
+            }
+          >
+            <Route
+              path="/support"
+              element={<SupportCenter />}
+            />
+          </Route>
+
+          {/* ESPACE ADMINISTRATEUR */}
 
           <Route
-            path="/admin/catalog"
-            element={<AdminCatalog />}
-          />
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN"]} />
+            }
+          >
+            <Route
+              path="/admin"
+              element={<Navigate to="/admin/dashboard" replace />}
+            />
+
+            <Route
+              path="/admin/dashboard"
+              element={<AdminDashboard />}
+            />
+
+            <Route
+              path="/admin/users"
+              element={<AdminUsers />}
+            />
+
+            <Route
+              path="/admin/companies"
+              element={<AdminCompanies />}
+            />
+
+            <Route
+              path="/admin/jobs"
+              element={<AdminJobs />}
+            />
+
+            <Route
+              path="/admin/applications"
+              element={<AdminApplications />}
+            />
+
+            <Route
+              path="/admin/notifications"
+              element={<AdminNotifications />}
+            />
+
+            <Route
+              path="/admin/reports"
+              element={<AdminReports />}
+            />
+
+            <Route
+              path="/admin/audit-logs"
+              element={<AdminAuditLogs />}
+            />
+
+            <Route
+              path="/admin/moderation"
+              element={<AdminModeration />}
+            />
+
+            <Route
+              path="/admin/verifications"
+              element={<AdminVerifications />}
+            />
+
+            <Route
+              path="/admin/catalog"
+              element={<AdminCatalog />}
+            />
+
+            <Route
+              path="/admin/support"
+              element={<AdminSupport />}
+            />
+          </Route>
+
+          {/* PAGE INTROUVABLE */}
 
           <Route
-            path="/admin/support"
-            element={<AdminSupport />}
+            path="*"
+            element={<ComingSoon title="Page introuvable" />}
           />
-        </Route>
+        </Routes>
+      </div>
 
-        {/* =========================================
-            ROUTE INCONNUE
-        ========================================= */}
-
-        <Route
-          path="*"
-          element={<ComingSoon title="Page introuvable" />}
-        />
-      </Routes>
-
-      {/* Pied de page public */}
       {showPublicLayout && <Footer />}
     </>
   );
