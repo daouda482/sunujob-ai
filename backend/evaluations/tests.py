@@ -186,7 +186,7 @@ class EvaluationTestBase(APITestCase):
     def get_result_count(self, response):
         """
         Retourne le nombre d'évaluations d'une réponse
-        qu'elle soit paginée ou non paginée.
+        paginée ou non paginée.
         """
 
         self.assertEqual(
@@ -194,14 +194,12 @@ class EvaluationTestBase(APITestCase):
             status.HTTP_200_OK,
         )
 
-        # Cas d'une réponse paginée
         if isinstance(response.data, dict):
             return response.data.get(
                 "count",
                 len(response.data.get("results", [])),
             )
 
-        # Cas d'une réponse non paginée
         return len(response.data)
 
     def valid_evaluation_payload(self, **overrides):
@@ -243,6 +241,19 @@ class EvaluationTestBase(APITestCase):
         data.update(overrides)
 
         return Evaluation.objects.create(**data)
+
+    def complete_evaluation(self, evaluation=None):
+        """
+        Termine une évaluation afin de la rendre visible
+        au candidat concerné.
+        """
+
+        evaluation = evaluation or self.evaluation
+
+        evaluation.status = Evaluation.Status.COMPLETED
+        evaluation.save(update_fields=["status", "updated_at"])
+
+        return evaluation
 
 
 # ==========================================================
@@ -432,11 +443,13 @@ class EvaluationSerializerTests(EvaluationTestBase):
                 application=self.other_application.pk,
                 interview=self.other_interview.pk,
             ),
-            context={"request": type(
-                "Request",
-                (),
-                {"user": self.recruiter},
-            )()},
+            context={
+                "request": type(
+                    "Request",
+                    (),
+                    {"user": self.recruiter},
+                )()
+            },
         )
 
         self.assertFalse(serializer.is_valid())
@@ -453,11 +466,13 @@ class EvaluationSerializerTests(EvaluationTestBase):
             data=self.valid_evaluation_payload(
                 interview=self.other_interview.pk,
             ),
-            context={"request": type(
-                "Request",
-                (),
-                {"user": self.recruiter},
-            )()},
+            context={
+                "request": type(
+                    "Request",
+                    (),
+                    {"user": self.recruiter},
+                )()
+            },
         )
 
         self.assertFalse(serializer.is_valid())
@@ -618,6 +633,9 @@ class EvaluationAPITests(EvaluationTestBase):
         )
 
     def test_candidate_can_list_own_evaluations(self):
+        # Une évaluation terminée est visible au candidat.
+        self.complete_evaluation()
+
         self.authenticate(self.candidate)
 
         response = self.client.get(self.list_url)
@@ -628,9 +646,16 @@ class EvaluationAPITests(EvaluationTestBase):
         )
 
     def test_candidate_cannot_see_another_candidate_evaluations(self):
+        # L'évaluation du candidat courant est terminée.
+        self.complete_evaluation()
+
+        # L'évaluation de l'autre candidat est également terminée.
+        # Le test vérifie donc réellement l'isolation par propriétaire.
         self.create_evaluation(
             application=self.other_application,
             evaluator=self.other_recruiter,
+            interview=self.other_interview,
+            status=Evaluation.Status.COMPLETED,
         )
 
         self.authenticate(self.candidate)
@@ -642,10 +667,22 @@ class EvaluationAPITests(EvaluationTestBase):
             1,
         )
 
+    def test_candidate_cannot_see_own_draft_evaluations(self):
+        self.authenticate(self.candidate)
+
+        response = self.client.get(self.list_url)
+
+        self.assertEqual(
+            self.get_result_count(response),
+            0,
+        )
+
     def test_candidate_cannot_access_another_candidate_evaluation_detail(self):
         other_evaluation = self.create_evaluation(
             application=self.other_application,
             evaluator=self.other_recruiter,
+            interview=self.other_interview,
+            status=Evaluation.Status.COMPLETED,
         )
 
         self.authenticate(self.candidate)
@@ -674,6 +711,8 @@ class EvaluationAPITests(EvaluationTestBase):
         )
 
     def test_candidate_cannot_update_evaluation(self):
+        self.complete_evaluation()
+
         self.authenticate(self.candidate)
 
         response = self.client.patch(
@@ -760,6 +799,7 @@ class EvaluationAPITests(EvaluationTestBase):
         self.create_evaluation(
             application=self.other_application,
             evaluator=self.other_recruiter,
+            interview=self.other_interview,
         )
 
         self.authenticate(self.admin)

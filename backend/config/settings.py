@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
 
     "users",
     "candidates",
@@ -184,8 +185,13 @@ MEDIA_ROOT = BASE_DIR / "media"
 # =====================================================
 
 CORS_ALLOWED_ORIGINS = [
+    # Frontend développement
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+
+    # Frontend production preview
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
 ]
 
 
