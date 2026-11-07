@@ -14,6 +14,7 @@ import {
 import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import ProtectedLayout from "./components/ProtectedLayout.jsx";
 
 // =====================================================
 // PAGES PUBLIQUES
@@ -92,6 +93,35 @@ import AdminSupport from "./pages/admin/AdminSupport.jsx";
 import SupportCenter from "./pages/support/SupportCenter.jsx";
 
 // =====================================================
+// UTILITAIRES DE SESSION
+// =====================================================
+
+function getStoredUser() {
+  try {
+    const storedUser =
+      localStorage.getItem("user") ||
+      sessionStorage.getItem("user");
+
+    const user = JSON.parse(storedUser || "null");
+
+    if (!user || typeof user !== "object" || Array.isArray(user)) {
+      return null;
+    }
+
+    return user;
+  } catch {
+    return null;
+  }
+}
+
+function hasStoredAccessToken() {
+  return Boolean(
+    localStorage.getItem("access") ||
+    sessionStorage.getItem("access")
+  );
+}
+
+// =====================================================
 // GESTION DES ERREURS REACT
 // =====================================================
 
@@ -128,7 +158,10 @@ class AppErrorBoundary extends Component {
           }}
         >
           <h1>Une erreur empêche l'affichage</h1>
-          <p>Un composant de SunuJob AI a rencontré une erreur.</p>
+
+          <p>
+            Un composant de SunuJob AI a rencontré une erreur.
+          </p>
 
           <pre
             style={{
@@ -174,22 +207,36 @@ function AppRoutes() {
     !isAdminPage &&
     !isCandidatePage;
 
+  const storedUser = getStoredUser();
+
+  const isAdminUser =
+    hasStoredAccessToken() &&
+    storedUser?.role?.toUpperCase() === "ADMIN";
+
   return (
     <>
+      {/* Navigation publique */}
       {showPublicLayout && <Navbar />}
 
-      {/* Navigation latérale administrateur unique */}
-      {isAdminPage && <AdminNavigation />}
+      {/* Navigation latérale administrateur */}
+      {isAdminPage && isAdminUser && <AdminNavigation />}
 
       {/* Contenu principal */}
       <div className={isAdminPage ? "admin-main-content" : undefined}>
         <Routes>
-          {/* PAGES PUBLIQUES */}
+
+          {/* =========================================
+              PAGES PUBLIQUES
+          ========================================= */}
 
           <Route path="/" element={<Home />} />
+
           <Route path="/login" element={<Login />} />
+
           <Route path="/register" element={<Register />} />
+
           <Route path="/jobs" element={<Jobs />} />
+
           <Route path="/jobs/:id" element={<JobDetails />} />
 
           <Route
@@ -197,176 +244,193 @@ function AppRoutes() {
             element={<NotificationsPage />}
           />
 
-          {/* ESPACE CANDIDAT */}
+
+          {/* =========================================
+              ESPACE CANDIDAT
+          ========================================= */}
 
           <Route
             element={
               <ProtectedRoute allowedRoles={["CANDIDATE"]} />
             }
           >
-            <Route
-              path="/candidate/dashboard"
-              element={<CandidateDashboard />}
-            />
+            <Route element={<ProtectedLayout />}>
+              <Route
+                path="/candidate/dashboard"
+                element={<CandidateDashboard />}
+              />
 
-            <Route
-              path="/candidate/profile"
-              element={<CandidateProfile />}
-            />
+              <Route
+                path="/candidate/profile"
+                element={<CandidateProfile />}
+              />
 
-            <Route
-              path="/candidate/cv"
-              element={<CandidateCV />}
-            />
+              <Route
+                path="/candidate/cv"
+                element={<CandidateCV />}
+              />
 
-            <Route
-              path="/candidate/cv-analysis"
-              element={<CVAnalysis />}
-            />
+              <Route
+                path="/candidate/cv-analysis"
+                element={<CVAnalysis />}
+              />
 
-            <Route
-              path="/candidate/applications"
-              element={<Applications />}
-            />
+              <Route
+                path="/candidate/applications"
+                element={<Applications />}
+              />
 
-            <Route
-              path="/application-success"
-              element={<ApplicationSuccess />}
-            />
+              <Route
+                path="/application-success"
+                element={<ApplicationSuccess />}
+              />
 
-            <Route
-              path="/my-applications"
-              element={<MyApplications />}
-            />
+              <Route
+                path="/my-applications"
+                element={<MyApplications />}
+              />
 
-            <Route
-              path="/candidate/notifications"
-              element={<NotificationsPage />}
-            />
+              <Route
+                path="/candidate/notifications"
+                element={<NotificationsPage />}
+              />
 
-            <Route
-              path="/candidate/recommendations"
-              element={<Recommendations />}
-            />
+              <Route
+                path="/candidate/recommendations"
+                element={<Recommendations />}
+              />
 
-            <Route
-              path="/candidate/interviews"
-              element={<Interviews />}
-            />
+              <Route
+                path="/candidate/interviews"
+                element={<Interviews />}
+              />
 
-            <Route
-              path="/candidate/ai-coach"
-              element={<AICoach />}
-            />
+              <Route
+                path="/candidate/ai-coach"
+                element={<AICoach />}
+              />
 
-            <Route
-              path="/jobs/:id/apply"
-              element={<Apply />}
-            />
+              <Route
+                path="/jobs/:id/apply"
+                element={<Apply />}
+              />
 
-            <Route
-              path="/candidate/favorites"
-              element={<Favorites />}
-            />
+              <Route
+                path="/candidate/favorites"
+                element={<Favorites />}
+              />
 
-            <Route
-              path="/candidate/job-alerts"
-              element={<JobAlerts />}
-            />
+              <Route
+                path="/candidate/job-alerts"
+                element={<JobAlerts />}
+              />
 
-            <Route
-              path="/candidate/settings"
-              element={
-                <ComingSoon title="Paramètres de votre espace candidat" />
-              }
-            />
+              <Route
+                path="/candidate/settings"
+                element={
+                  <ComingSoon title="Paramètres de votre espace candidat" />
+                }
+              />
+            </Route>
           </Route>
 
-          {/* ESPACE RECRUTEUR */}
+
+          {/* =========================================
+              ESPACE RECRUTEUR
+          ========================================= */}
 
           <Route
             element={
               <ProtectedRoute allowedRoles={["RECRUITER"]} />
             }
           >
-            <Route
-              path="/recruiter/dashboard"
-              element={<RecruiterDashboard />}
-            />
+            <Route element={<ProtectedLayout />}>
+              <Route
+                path="/recruiter/dashboard"
+                element={<RecruiterDashboard />}
+              />
 
-            <Route
-              path="/recruiter/jobs"
-              element={<RecruiterJobs />}
-            />
+              <Route
+                path="/recruiter/jobs"
+                element={<RecruiterJobs />}
+              />
 
-            <Route
-              path="/recruiter/jobs/new"
-              element={<RecruiterJobForm />}
-            />
+              <Route
+                path="/recruiter/jobs/new"
+                element={<RecruiterJobForm />}
+              />
 
-            <Route
-              path="/recruiter/jobs/:id/edit"
-              element={<RecruiterJobForm />}
-            />
+              <Route
+                path="/recruiter/jobs/:id/edit"
+                element={<RecruiterJobForm />}
+              />
 
-            <Route
-              path="/recruiter/applications"
-              element={<RecruiterApplications />}
-            />
+              <Route
+                path="/recruiter/applications"
+                element={<RecruiterApplications />}
+              />
 
-            <Route
-              path="/recruiter/statistics"
-              element={<RecruiterStatistics />}
-            />
+              <Route
+                path="/recruiter/statistics"
+                element={<RecruiterStatistics />}
+              />
 
-            <Route
-              path="/recruiter/interviews"
-              element={<RecruiterInterviews />}
-            />
+              <Route
+                path="/recruiter/interviews"
+                element={<RecruiterInterviews />}
+              />
 
-            {/* Évaluations : routes déclarées une seule fois */}
-            <Route
-              path="/recruiter/evaluations"
-              element={<Evaluations />}
-            />
+              <Route
+                path="/recruiter/evaluations"
+                element={<Evaluations />}
+              />
 
-            <Route
-              path="/recruiter/evaluations/new"
-              element={<EvaluationForm />}
-            />
+              <Route
+                path="/recruiter/evaluations/new"
+                element={<EvaluationForm />}
+              />
 
-            <Route
-              path="/recruiter/evaluations/:id"
-              element={<EvaluationDetails />}
-            />
+              <Route
+                path="/recruiter/evaluations/:id"
+                element={<EvaluationDetails />}
+              />
 
-            <Route
-              path="/recruiter/company"
-              element={<RecruiterCompanies />}
-            />
+              <Route
+                path="/recruiter/company"
+                element={<RecruiterCompanies />}
+              />
 
-            <Route
-              path="/recruiter/company-verification"
-              element={<CompanyVerification />}
-            />
+              <Route
+                path="/recruiter/company-verification"
+                element={<CompanyVerification />}
+              />
+            </Route>
           </Route>
 
-          {/* ORGANISME DE FORMATION */}
+
+          {/* =========================================
+              ORGANISME DE FORMATION
+          ========================================= */}
 
           <Route
             element={
               <ProtectedRoute allowedRoles={["TRAINING_PROVIDER"]} />
             }
           >
-            <Route
-              path="/training-provider/dashboard"
-              element={
-                <ComingSoon title="Espace organisme de formation" />
-              }
-            />
+            <Route element={<ProtectedLayout />}>
+              <Route
+                path="/training-provider/dashboard"
+                element={
+                  <ComingSoon title="Espace organisme de formation" />
+                }
+              />
+            </Route>
           </Route>
 
-          {/* SUPPORT */}
+
+          {/* =========================================
+              ESPACE SUPPORT
+          ========================================= */}
 
           <Route
             element={
@@ -375,94 +439,111 @@ function AppRoutes() {
               />
             }
           >
-            <Route
-              path="/support"
-              element={<SupportCenter />}
-            />
+            <Route element={<ProtectedLayout />}>
+              <Route
+                path="/support"
+                element={<SupportCenter />}
+              />
+            </Route>
           </Route>
 
-          {/* ESPACE ADMINISTRATEUR */}
+
+          {/* =========================================
+              ESPACE ADMINISTRATEUR
+          ========================================= */}
 
           <Route
             element={
               <ProtectedRoute allowedRoles={["ADMIN"]} />
             }
           >
-            <Route
-              path="/admin"
-              element={<Navigate to="/admin/dashboard" replace />}
-            />
+            <Route element={<ProtectedLayout />}>
+              <Route
+                path="/admin"
+                element={
+                  <Navigate
+                    to="/admin/dashboard"
+                    replace
+                  />
+                }
+              />
 
-            <Route
-              path="/admin/dashboard"
-              element={<AdminDashboard />}
-            />
+              <Route
+                path="/admin/dashboard"
+                element={<AdminDashboard />}
+              />
 
-            <Route
-              path="/admin/users"
-              element={<AdminUsers />}
-            />
+              <Route
+                path="/admin/users"
+                element={<AdminUsers />}
+              />
 
-            <Route
-              path="/admin/companies"
-              element={<AdminCompanies />}
-            />
+              <Route
+                path="/admin/companies"
+                element={<AdminCompanies />}
+              />
 
-            <Route
-              path="/admin/jobs"
-              element={<AdminJobs />}
-            />
+              <Route
+                path="/admin/jobs"
+                element={<AdminJobs />}
+              />
 
-            <Route
-              path="/admin/applications"
-              element={<AdminApplications />}
-            />
+              <Route
+                path="/admin/applications"
+                element={<AdminApplications />}
+              />
 
-            <Route
-              path="/admin/notifications"
-              element={<AdminNotifications />}
-            />
+              <Route
+                path="/admin/notifications"
+                element={<AdminNotifications />}
+              />
 
-            <Route
-              path="/admin/reports"
-              element={<AdminReports />}
-            />
+              <Route
+                path="/admin/reports"
+                element={<AdminReports />}
+              />
 
-            <Route
-              path="/admin/audit-logs"
-              element={<AdminAuditLogs />}
-            />
+              <Route
+                path="/admin/audit-logs"
+                element={<AdminAuditLogs />}
+              />
 
-            <Route
-              path="/admin/moderation"
-              element={<AdminModeration />}
-            />
+              <Route
+                path="/admin/moderation"
+                element={<AdminModeration />}
+              />
 
-            <Route
-              path="/admin/verifications"
-              element={<AdminVerifications />}
-            />
+              <Route
+                path="/admin/verifications"
+                element={<AdminVerifications />}
+              />
 
-            <Route
-              path="/admin/catalog"
-              element={<AdminCatalog />}
-            />
+              <Route
+                path="/admin/catalog"
+                element={<AdminCatalog />}
+              />
 
-            <Route
-              path="/admin/support"
-              element={<AdminSupport />}
-            />
+              <Route
+                path="/admin/support"
+                element={<AdminSupport />}
+              />
+            </Route>
           </Route>
 
-          {/* PAGE INTROUVABLE */}
+
+          {/* =========================================
+              PAGE INTROUVABLE
+          ========================================= */}
 
           <Route
             path="*"
             element={<ComingSoon title="Page introuvable" />}
           />
+
         </Routes>
       </div>
 
+      {/* Pied de page public */}
       {showPublicLayout && <Footer />}
     </>
   );

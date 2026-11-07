@@ -8,6 +8,20 @@ const VALID_ROLES = [
   "ADMIN",
 ];
 
+const ROLE_DESTINATIONS = {
+  CANDIDATE: "/candidate/dashboard",
+  RECRUITER: "/recruiter/dashboard",
+  TRAINING_PROVIDER: "/training-provider/dashboard",
+  ADMIN: "/admin/dashboard",
+};
+
+function clearStoredSession() {
+  ["access", "refresh", "user"].forEach((key) => {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  });
+}
+
 export default function ProtectedRoute({ allowedRoles = [] }) {
   const location = useLocation();
 
@@ -19,13 +33,7 @@ export default function ProtectedRoute({ allowedRoles = [] }) {
     localStorage.getItem("user") ||
     sessionStorage.getItem("user");
 
-  const clearStoredSession = () => {
-    ["access", "refresh", "user"].forEach((key) => {
-      localStorage.removeItem(key);
-      sessionStorage.removeItem(key);
-    });
-  };
-
+  // 1. Vérifier la présence de la session.
   if (!accessToken || !storedUser) {
     return (
       <Navigate
@@ -36,6 +44,7 @@ export default function ProtectedRoute({ allowedRoles = [] }) {
     );
   }
 
+  // 2. Vérifier les informations utilisateur.
   let user;
 
   try {
@@ -44,23 +53,39 @@ export default function ProtectedRoute({ allowedRoles = [] }) {
     if (
       !user ||
       typeof user !== "object" ||
-      Array.isArray(user) ||
-      !VALID_ROLES.includes(user.role)
+      Array.isArray(user)
     ) {
-      throw new Error("Données utilisateur invalides.");
+      throw new Error("Utilisateur invalide.");
+    }
+
+    user.role = String(user.role || "").toUpperCase();
+
+    if (!VALID_ROLES.includes(user.role)) {
+      throw new Error("Rôle utilisateur invalide.");
     }
   } catch {
     clearStoredSession();
 
-    return <Navigate to="/login" replace />;
+    return (
+      <Navigate
+        to="/login"
+        state={{ from: location }}
+        replace
+      />
+    );
   }
 
+  // 3. Vérifier les rôles autorisés.
   if (
     allowedRoles.length > 0 &&
     !allowedRoles.includes(user.role)
   ) {
-    return <Navigate to="/" replace />;
+    const destination =
+      ROLE_DESTINATIONS[user.role] || "/login";
+
+    return <Navigate to={destination} replace />;
   }
 
+  // 4. Autoriser l'accès à la page.
   return <Outlet />;
 }
