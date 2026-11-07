@@ -28,12 +28,9 @@ import {
 } from "lucide-react";
 
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import api from "../../api/axios";
+import { useAuth } from "../../context/AuthContext.jsx";
+import api from "../../services/api.js";
 import "./CandidateDashboard.css";
-
-const API_ORIGIN = (
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/"
-).replace(/\/api\/?$/, "");
 
 const extractList = (response) => {
   const data = response?.data ?? response;
@@ -157,17 +154,8 @@ const getDisplayName = (user, profile) => {
 export default function CandidateDashboard() {
   const navigate = useNavigate();
 
-  const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(
-        localStorage.getItem("user") ||
-          sessionStorage.getItem("user") ||
-          "null"
-      );
-    } catch {
-      return null;
-    }
-  });
+  // Authentification centralisée.
+  const { user, logout: authLogout } = useAuth();
 
   const [profile, setProfile] = useState(null);
   const [applications, setApplications] = useState([]);
@@ -176,9 +164,6 @@ export default function CandidateDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
-
-  const accessToken =
-    localStorage.getItem("access") || sessionStorage.getItem("access");
 
   const displayName = useMemo(
     () => getDisplayName(user, profile),
@@ -192,25 +177,15 @@ export default function CandidateDashboard() {
     [profile, user]
   );
 
-  const handleLogout = () => {
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
-    localStorage.removeItem("user");
-
-    sessionStorage.removeItem("access");
-    sessionStorage.removeItem("refresh");
-    sessionStorage.removeItem("user");
-
+  // Déconnexion via AuthContext et l'API Django.
+  const handleLogout = async () => {
+    await authLogout();
     navigate("/login", { replace: true });
   };
 
+  // Chargement des données du tableau de bord.
   const loadDashboard = useCallback(
     async (isRefresh = false) => {
-      if (!accessToken) {
-        navigate("/login", { replace: true });
-        return;
-      }
-
       if (isRefresh) {
         setRefreshing(true);
       } else {
@@ -219,93 +194,71 @@ export default function CandidateDashboard() {
 
       setError("");
 
-      const requests = await Promise.allSettled([
-        api.get("users/profile/"),
-        api.get("candidates/profile/me/"),
-        api.get("applications/my/"),
-        api.get("matching/recommended-jobs/"),
-      ]);
+      try {
+        const requests = await Promise.allSettled([
+          api.get("candidates/profile/me/"),
+          api.get("applications/my/"),
+          api.get("matching/recommended-jobs/"),
+        ]);
 
-      const [
-        userResult,
-        profileResult,
-        applicationsResult,
-        jobsResult,
-      ] = requests;
+        const [
+          profileResult,
+          applicationsResult,
+          jobsResult,
+        ] = requests;
 
-      let failedRequests = 0;
+        let failedRequests = 0;
 
-      if (userResult.status === "fulfilled") {
-        const userData = userResult.value?.data;
-
-        if (userData && typeof userData === "object") {
-          setUser((previous) => ({
-            ...(previous || {}),
-            ...userData,
-          }));
-
-          try {
-            const storage = localStorage.getItem("access")
-              ? localStorage
-              : sessionStorage;
-
-            storage.setItem("user", JSON.stringify(userData));
-          } catch {
-            // Le tableau de bord reste utilisable.
-          }
+        if (profileResult.status === "fulfilled") {
+          setProfile(profileResult.value?.data || null);
+        } else {
+          failedRequests += 1;
+          console.error(
+            "Erreur candidates/profile/me/ :",
+            profileResult.reason
+          );
         }
-      } else {
-        failedRequests += 1;
-        console.error(
-          "Erreur users/profile/ :",
-          userResult.reason
-        );
-      }
 
-      if (profileResult.status === "fulfilled") {
-        setProfile(profileResult.value?.data || null);
-      } else {
-        failedRequests += 1;
-        console.error(
-          "Erreur candidates/profile/me/ :",
-          profileResult.reason
-        );
-      }
+        if (applicationsResult.status === "fulfilled") {
+          setApplications(extractList(applicationsResult.value));
+        } else {
+          failedRequests += 1;
+          console.error(
+            "Erreur applications/my/ :",
+            applicationsResult.reason
+          );
+        }
 
-      if (applicationsResult.status === "fulfilled") {
-        setApplications(extractList(applicationsResult.value));
-      } else {
-        failedRequests += 1;
-        console.error(
-          "Erreur applications/my/ :",
-          applicationsResult.reason
-        );
-      }
+        if (jobsResult.status === "fulfilled") {
+          setRecommendedJobs(extractList(jobsResult.value));
+        } else {
+          failedRequests += 1;
+          console.error(
+            "Erreur matching/recommended-jobs/ :",
+            jobsResult.reason
+          );
+        }
 
-      if (jobsResult.status === "fulfilled") {
-        setRecommendedJobs(extractList(jobsResult.value));
-      } else {
-        failedRequests += 1;
-        console.error(
-          "Erreur matching/recommended-jobs/ :",
-          jobsResult.reason
-        );
-      }
-
-      if (failedRequests === requests.length) {
+        if (failedRequests === requests.length) {
+          setError(
+            "Impossible de charger les données du tableau de bord. Vérifie ta connexion et ton authentification."
+          );
+        } else if (failedRequests > 0) {
+          setError(
+            "Certaines informations n'ont pas pu être chargées. Les autres sections restent disponibles."
+          );
+        }
+      } catch (err) {
+        console.error("Erreur générale du tableau de bord :", err);
         setError(
-          "Impossible de charger les données du tableau de bord. Vérifie ta connexion et ton authentification."
+          "Une erreur inattendue est survenue lors du chargement du tableau de bord."
         );
-      } else if (failedRequests > 0) {
-        setError(
-          "Certaines informations n'ont pas pu être chargées. Les autres sections restent disponibles."
-        );
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-
-      setLoading(false);
-      setRefreshing(false);
     },
-    [accessToken, navigate]
+    []
   );
 
   useEffect(() => {

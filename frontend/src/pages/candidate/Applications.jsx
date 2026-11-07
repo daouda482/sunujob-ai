@@ -1,7 +1,12 @@
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import api from "../../api/axios";
+import api from "../../services/api.js";
 import "./Applications.css";
+
+/* =========================================================
+   FONCTIONS UTILITAIRES
+========================================================= */
 
 function getArray(data) {
   if (Array.isArray(data)) return data;
@@ -18,12 +23,17 @@ function getJob(application) {
 
 function getJobId(application) {
   const job = getJob(application);
-  return job?.id ?? application?.job_id ??
-    (typeof application?.job === "number" ? application.job : null);
+
+  return (
+    job?.id ??
+    application?.job_id ??
+    (typeof application?.job === "number" ? application.job : null)
+  );
 }
 
 function getJobTitle(application) {
   const job = getJob(application);
+
   return (
     job?.title ||
     application?.job_title ||
@@ -34,6 +44,7 @@ function getJobTitle(application) {
 
 function getCompanyName(application) {
   const job = getJob(application);
+
   const company =
     job?.company && typeof job.company === "object"
       ? job.company.name
@@ -53,24 +64,66 @@ function getStatus(status) {
     .toUpperCase();
 
   const statuses = {
-    PENDING: { label: "En attente", className: "pending" },
-    REVIEWING: { label: "En cours d'examen", className: "reviewing" },
-    IN_REVIEW: { label: "En cours d'examen", className: "reviewing" },
-    UNDER_REVIEW: { label: "En cours d'examen", className: "reviewing" },
-    SHORTLISTED: { label: "Présélectionnée", className: "shortlisted" },
-    INTERVIEW: { label: "Entretien prévu", className: "interview" },
+    PENDING: {
+      label: "En attente",
+      className: "pending",
+    },
+    REVIEWING: {
+      label: "En cours d'examen",
+      className: "reviewing",
+    },
+    IN_REVIEW: {
+      label: "En cours d'examen",
+      className: "reviewing",
+    },
+    UNDER_REVIEW: {
+      label: "En cours d'examen",
+      className: "reviewing",
+    },
+    SHORTLISTED: {
+      label: "Présélectionnée",
+      className: "shortlisted",
+    },
+    INTERVIEW: {
+      label: "Entretien prévu",
+      className: "interview",
+    },
     INTERVIEW_SCHEDULED: {
       label: "Entretien prévu",
       className: "interview",
     },
-    ACCEPTED: { label: "Acceptée", className: "accepted" },
-    ACCEPTEE: { label: "Acceptée", className: "accepted" },
-    "ACCEPTÉE": { label: "Acceptée", className: "accepted" },
-    REJECTED: { label: "Refusée", className: "rejected" },
-    REFUSED: { label: "Refusée", className: "rejected" },
-    REJETEE: { label: "Refusée", className: "rejected" },
-    "REJETÉE": { label: "Refusée", className: "rejected" },
-    WITHDRAWN: { label: "Retirée", className: "withdrawn" },
+    ACCEPTED: {
+      label: "Acceptée",
+      className: "accepted",
+    },
+    ACCEPTEE: {
+      label: "Acceptée",
+      className: "accepted",
+    },
+    "ACCEPTÉE": {
+      label: "Acceptée",
+      className: "accepted",
+    },
+    REJECTED: {
+      label: "Refusée",
+      className: "rejected",
+    },
+    REFUSED: {
+      label: "Refusée",
+      className: "rejected",
+    },
+    REJETEE: {
+      label: "Refusée",
+      className: "rejected",
+    },
+    "REJETÉE": {
+      label: "Refusée",
+      className: "rejected",
+    },
+    WITHDRAWN: {
+      label: "Retirée",
+      className: "withdrawn",
+    },
   };
 
   return (
@@ -95,7 +148,10 @@ function formatDate(value) {
   if (!value) return "Date non disponible";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Date non disponible";
+
+  if (Number.isNaN(date.getTime())) {
+    return "Date non disponible";
+  }
 
   return new Intl.DateTimeFormat("fr-FR", {
     day: "2-digit",
@@ -114,6 +170,10 @@ function getInitials(company) {
     .toUpperCase();
 }
 
+/* =========================================================
+   PAGE MES CANDIDATURES
+========================================================= */
+
 export default function Applications() {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -122,12 +182,17 @@ export default function Applications() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [selectedApplication, setSelectedApplication] = useState(null);
 
+  /* =========================================================
+     CHARGEMENT DES CANDIDATURES
+  ========================================================= */
+
   const loadApplications = useCallback(async () => {
     setLoading(true);
     setError("");
 
     try {
       const response = await api.get("applications/my/");
+
       setApplications(getArray(response.data));
     } catch (err) {
       console.error(
@@ -154,14 +219,27 @@ export default function Applications() {
     loadApplications();
   }, [loadApplications]);
 
+  /* =========================================================
+     FERMETURE DE LA FENÊTRE AVEC ÉCHAP
+  ========================================================= */
+
   useEffect(() => {
     function handleKeyDown(event) {
-      if (event.key === "Escape") setSelectedApplication(null);
+      if (event.key === "Escape") {
+        setSelectedApplication(null);
+      }
     }
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
+
+  /* =========================================================
+     STATISTIQUES
+  ========================================================= */
 
   const stats = useMemo(() => {
     const counts = {
@@ -175,16 +253,29 @@ export default function Applications() {
     applications.forEach((application) => {
       const status = getStatus(application.status).className;
 
-      if (status === "pending") counts.pending += 1;
+      if (status === "pending") {
+        counts.pending += 1;
+      }
+
       if (status === "reviewing" || status === "shortlisted") {
         counts.reviewing += 1;
       }
-      if (status === "interview") counts.interviews += 1;
-      if (status === "accepted") counts.accepted += 1;
+
+      if (status === "interview") {
+        counts.interviews += 1;
+      }
+
+      if (status === "accepted") {
+        counts.accepted += 1;
+      }
     });
 
     return counts;
   }, [applications]);
+
+  /* =========================================================
+     RECHERCHE ET FILTRES
+  ========================================================= */
 
   const filteredApplications = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("fr");
@@ -205,11 +296,18 @@ export default function Applications() {
     });
   }, [applications, search, statusFilter]);
 
+  /* =========================================================
+     AFFICHAGE
+  ========================================================= */
+
   return (
     <main className="app-page">
+      {/* BARRE DE NAVIGATION */}
+
       <header className="app-topbar">
         <Link to="/" className="app-brand" aria-label="SunuJob AI - Accueil">
           <span className="app-brand-icon">S</span>
+
           <span>
             SunuJob <strong>AI</strong>
             <small>VOTRE AVENIR, AUTREMENT</small>
@@ -219,7 +317,9 @@ export default function Applications() {
         <nav className="app-navigation" aria-label="Navigation principale">
           <Link to="/">Accueil</Link>
           <Link to="/jobs">Offres d'emploi</Link>
-          <Link to="/candidate/recommendations">Recommandations IA</Link>
+          <Link to="/candidate/recommendations">
+            Recommandations IA
+          </Link>
           <Link to="/candidate/profile">Mon profil</Link>
         </nav>
 
@@ -229,12 +329,16 @@ export default function Applications() {
       </header>
 
       <div className="app-container">
+        {/* EN-TÊTE */}
+
         <section className="app-hero">
           <div className="app-hero-text">
             <span className="app-eyebrow">
               VOTRE ESPACE CARRIÈRE
             </span>
+
             <h1>Mes candidatures</h1>
+
             <p>
               Retrouvez toutes vos demandes d'emploi au même endroit.
               Suivez leur évolution et préparez sereinement votre prochaine
@@ -248,9 +352,17 @@ export default function Applications() {
           </div>
         </section>
 
-        <section className="app-stat-grid" aria-label="Résumé des candidatures">
+        {/* STATISTIQUES */}
+
+        <section
+          className="app-stat-grid"
+          aria-label="Résumé des candidatures"
+        >
           <article className="app-stat-card">
-            <div className="app-stat-icon blue" aria-hidden="true">▤</div>
+            <div className="app-stat-icon blue" aria-hidden="true">
+              ▤
+            </div>
+
             <div>
               <span>Total des candidatures</span>
               <strong>{stats.total}</strong>
@@ -258,7 +370,10 @@ export default function Applications() {
           </article>
 
           <article className="app-stat-card">
-            <div className="app-stat-icon orange" aria-hidden="true">◷</div>
+            <div className="app-stat-icon orange" aria-hidden="true">
+              ◷
+            </div>
+
             <div>
               <span>En attente</span>
               <strong>{stats.pending}</strong>
@@ -266,7 +381,10 @@ export default function Applications() {
           </article>
 
           <article className="app-stat-card">
-            <div className="app-stat-icon purple" aria-hidden="true">⌕</div>
+            <div className="app-stat-icon purple" aria-hidden="true">
+              ⌕
+            </div>
+
             <div>
               <span>En cours d'examen</span>
               <strong>{stats.reviewing}</strong>
@@ -274,7 +392,10 @@ export default function Applications() {
           </article>
 
           <article className="app-stat-card">
-            <div className="app-stat-icon green" aria-hidden="true">✓</div>
+            <div className="app-stat-icon green" aria-hidden="true">
+              ✓
+            </div>
+
             <div>
               <span>Candidatures acceptées</span>
               <strong>{stats.accepted}</strong>
@@ -282,10 +403,13 @@ export default function Applications() {
           </article>
         </section>
 
+        {/* HISTORIQUE */}
+
         <section className="app-list-panel">
           <div className="app-list-heading">
             <div>
               <h2>Historique de mes candidatures</h2>
+
               <p>
                 Consultez le poste visé, l'entreprise et le statut de chaque
                 demande.
@@ -298,9 +422,12 @@ export default function Applications() {
             </Link>
           </div>
 
+          {/* RECHERCHE ET FILTRES */}
+
           <div className="app-filters">
             <label className="app-search">
               <span aria-hidden="true">⌕</span>
+
               <input
                 type="search"
                 value={search}
@@ -327,15 +454,21 @@ export default function Applications() {
             </select>
           </div>
 
+          {/* ERREUR */}
+
           {error && (
             <div className="app-error" role="alert">
               <strong>Chargement impossible</strong>
+
               <p>{error}</p>
+
               <button type="button" onClick={loadApplications}>
                 Réessayer
               </button>
             </div>
           )}
+
+          {/* CHARGEMENT */}
 
           {loading ? (
             <div className="app-loading" role="status">
@@ -343,15 +476,19 @@ export default function Applications() {
               Chargement de vos candidatures...
             </div>
           ) : !error && filteredApplications.length === 0 ? (
+            /* AUCUN RÉSULTAT */
+
             <div className="app-empty">
               <div className="app-empty-icon" aria-hidden="true">
                 {applications.length === 0 ? "▤" : "⌕"}
               </div>
+
               <h3>
                 {applications.length === 0
                   ? "Votre parcours commence ici"
                   : "Aucun résultat trouvé"}
               </h3>
+
               <p>
                 {applications.length === 0
                   ? "Vous n'avez pas encore envoyé de candidature. Explorez les offres disponibles et trouvez celle qui correspond à votre profil."
@@ -376,6 +513,8 @@ export default function Applications() {
               )}
             </div>
           ) : (
+            /* TABLEAU DES CANDIDATURES */
+
             !error && (
               <div className="app-table-wrapper">
                 <table className="app-table">
@@ -399,9 +538,13 @@ export default function Applications() {
                         <tr key={application.id ?? `${title}-${index}`}>
                           <td>
                             <div className="app-job-cell">
-                              <div className="app-company-icon" aria-hidden="true">
+                              <div
+                                className="app-company-icon"
+                                aria-hidden="true"
+                              >
                                 {getInitials(company)}
                               </div>
+
                               <div>
                                 <strong>{title}</strong>
                                 <span>{company}</span>
@@ -414,7 +557,9 @@ export default function Applications() {
                           </td>
 
                           <td>
-                            <span className={`app-status ${status.className}`}>
+                            <span
+                              className={`app-status ${status.className}`}
+                            >
                               <i aria-hidden="true" />
                               {status.label}
                             </span>
@@ -424,10 +569,14 @@ export default function Applications() {
                             <button
                               type="button"
                               className="app-detail-button"
-                              onClick={() => setSelectedApplication(application)}
+                              onClick={() =>
+                                setSelectedApplication(application)
+                              }
                             >
-                              Voir les détails <span aria-hidden="true">↗</span>
+                              Voir les détails{" "}
+                              <span aria-hidden="true">↗</span>
                             </button>
+
                             {jobId && (
                               <Link
                                 className="app-detail-button"
@@ -448,11 +597,18 @@ export default function Applications() {
           )}
         </section>
 
+        {/* PIED DE PAGE */}
+
         <footer className="app-footer">
-          <span>© {new Date().getFullYear()} SunuJob AI. Tous droits réservés.</span>
+          <span>
+            © {new Date().getFullYear()} SunuJob AI. Tous droits réservés.
+          </span>
+
           <span>Conçu avec ♥ au Sénégal 🇸🇳</span>
         </footer>
       </div>
+
+      {/* FENÊTRE DES DÉTAILS */}
 
       {selectedApplication && (
         <div
@@ -471,9 +627,15 @@ export default function Applications() {
           >
             <div className="app-modal-heading">
               <div>
-                <span className="app-eyebrow">SUIVI DE CANDIDATURE</span>
-                <h2 id="application-modal-title">Détails de la demande</h2>
+                <span className="app-eyebrow">
+                  SUIVI DE CANDIDATURE
+                </span>
+
+                <h2 id="application-modal-title">
+                  Détails de la demande
+                </h2>
               </div>
+
               <button
                 type="button"
                 className="app-modal-close"
@@ -487,18 +649,25 @@ export default function Applications() {
             <div className="app-modal-body">
               <div className="app-detail-row">
                 <span>Poste</span>
-                <strong>{getJobTitle(selectedApplication)}</strong>
+                <strong>
+                  {getJobTitle(selectedApplication)}
+                </strong>
               </div>
+
               <div className="app-detail-row">
                 <span>Entreprise</span>
-                <strong>{getCompanyName(selectedApplication)}</strong>
+                <strong>
+                  {getCompanyName(selectedApplication)}
+                </strong>
               </div>
+
               <div className="app-detail-row">
                 <span>Date d'envoi</span>
                 <strong>
                   {formatDate(getApplicationDate(selectedApplication))}
                 </strong>
               </div>
+
               <div className="app-detail-row">
                 <span>Statut actuel</span>
                 <strong>

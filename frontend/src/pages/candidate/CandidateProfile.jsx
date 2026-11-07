@@ -1,8 +1,12 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../../api/axios";
+import api from "../../services/api.js";
 import "./CandidateProfile.css";
+
+/* =========================================================
+   CONFIGURATION
+========================================================= */
 
 const initialForm = {
   photo: null,
@@ -28,6 +32,10 @@ const educationOptions = [
   { value: "DOCTORATE", label: "Doctorat" },
   { value: "OTHER", label: "Autre" },
 ];
+
+/* =========================================================
+   FONCTIONS UTILITAIRES
+========================================================= */
 
 const isBrowserFile = (value) =>
   typeof File !== "undefined" && value instanceof File;
@@ -62,6 +70,10 @@ function getErrorMessage(error) {
   return error?.message || "Une erreur inattendue est survenue.";
 }
 
+/* =========================================================
+   COMPOSANT PRINCIPAL
+========================================================= */
+
 export default function CandidateProfile() {
   const navigate = useNavigate();
 
@@ -71,6 +83,10 @@ export default function CandidateProfile() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [existingProfile, setExistingProfile] = useState(false);
+
+  /* =========================================================
+     CHARGEMENT DU PROFIL EXISTANT
+  ========================================================= */
 
   useEffect(() => {
     let active = true;
@@ -88,8 +104,8 @@ export default function CandidateProfile() {
         setFormData((previous) => ({
           ...previous,
 
-          // Les URL des fichiers déjà enregistrés ne sont pas
-          // des objets File : on ne les réutilise pas comme fichiers.
+          // Les fichiers déjà enregistrés ne sont pas
+          // des objets File. Ils ne doivent pas être renvoyés.
           photo: null,
           resume: null,
 
@@ -106,19 +122,24 @@ export default function CandidateProfile() {
           availability: profile.availability || "AVAILABLE",
         }));
       } catch (err) {
+        if (!active) return;
+
         if (err.response?.status === 401) {
-          navigate("/login");
+          navigate("/login", { replace: true });
           return;
         }
 
         // Un profil inexistant correspond à une première création.
-        // Une autre erreur ne doit pas empêcher d'afficher le formulaire.
         if (err.response?.status === 404) {
           setExistingProfile(false);
-        } else if (err.response) {
+        } else {
           console.error(
             "Impossible de charger le profil :",
-            err.response.data
+            err.response?.data || err.message
+          );
+
+          setError(
+            "Impossible de charger ton profil. Tu peux vérifier ta connexion et réessayer."
           );
         }
       } finally {
@@ -134,6 +155,10 @@ export default function CandidateProfile() {
       active = false;
     };
   }, [navigate]);
+
+  /* =========================================================
+     MODIFICATION DES CHAMPS
+  ========================================================= */
 
   function handleChange(event) {
     const { name, value, type, files } = event.target;
@@ -159,6 +184,10 @@ export default function CandidateProfile() {
     setError("");
     setSuccess("");
   }
+
+  /* =========================================================
+     VALIDATION DES FICHIERS
+  ========================================================= */
 
   function validateFiles() {
     const { photo, resume } = formData;
@@ -194,10 +223,18 @@ export default function CandidateProfile() {
     return "";
   }
 
+  /* =========================================================
+     ENREGISTREMENT DU PROFIL
+  ========================================================= */
+
   async function handleSubmit(event) {
     event.preventDefault();
 
     if (loading) return;
+
+    // On conserve la référence du formulaire avant le await.
+    // Cela permet de le réinitialiser correctement après la requête.
+    const formElement = event.currentTarget;
 
     setError("");
     setSuccess("");
@@ -214,8 +251,7 @@ export default function CandidateProfile() {
     try {
       const payload = new FormData();
 
-      // Ajouter uniquement les champs textuels et numériques.
-      // Les fichiers sont ajoutés séparément plus bas.
+      // Ajouter les champs textuels et numériques.
       Object.entries(formData).forEach(([key, value]) => {
         if (key === "photo" || key === "resume") {
           return;
@@ -226,30 +262,20 @@ export default function CandidateProfile() {
         }
       });
 
-      // IMPORTANT : n'envoyer que de véritables objets File.
-      // Ne jamais envoyer une URL ou une chaîne de caractères
-      // dans les champs photo et resume.
+      // Ajouter uniquement les véritables fichiers.
       if (isBrowserFile(formData.photo)) {
-        payload.append("photo", formData.photo, formData.photo.name);
+        payload.append(
+          "photo",
+          formData.photo,
+          formData.photo.name
+        );
       }
 
       if (isBrowserFile(formData.resume)) {
-        payload.append("resume", formData.resume, formData.resume.name);
-      }
-
-      // Diagnostic : les fichiers doivent être présents comme File.
-      console.log("Préparation de l'envoi du profil :");
-      console.log("Photo sélectionnée :", isBrowserFile(formData.photo));
-      console.log("CV sélectionné :", isBrowserFile(formData.resume));
-
-      // Affiche les types réellement présents dans le FormData,
-      // sans afficher le contenu des fichiers.
-      for (const [key, value] of payload.entries()) {
-        console.log(
-          `FormData ${key} :`,
-          isBrowserFile(value)
-            ? `Fichier "${value.name}" (${value.size} octets)`
-            : value
+        payload.append(
+          "resume",
+          formData.resume,
+          formData.resume.name
         );
       }
 
@@ -258,16 +284,20 @@ export default function CandidateProfile() {
         : "candidates/profile/";
 
       // Ne pas définir manuellement Content-Type.
-      // Axios et le navigateur doivent gérer le multipart.
-      const response = existingProfile
-        ? await api.patch(endpoint, payload)
-        : await api.post(endpoint, payload);
+      // Le navigateur et Axios gèrent le multipart/form-data.
+      if (existingProfile) {
+        await api.patch(endpoint, payload);
+      } else {
+        await api.post(endpoint, payload);
+      }
 
       setExistingProfile(true);
-      setSuccess("Ton profil candidat a été enregistré avec succès.");
 
-      // Les champs fichier sont réinitialisés pour éviter de
-      // réenvoyer une ancienne sélection lors d'une modification.
+      setSuccess(
+        "Ton profil candidat a été enregistré avec succès."
+      );
+
+      // Réinitialiser uniquement les champs fichiers.
       setFormData((previous) => ({
         ...previous,
         photo: null,
@@ -275,20 +305,28 @@ export default function CandidateProfile() {
       }));
 
       // Réinitialiser les champs fichier visibles.
-      event.currentTarget.reset();
-
-      console.log("Profil enregistré :", response.data);
+      formElement.reset();
     } catch (err) {
       console.error(
         "Erreur lors de l'enregistrement du profil :",
-        err.response?.data || err
+        err.response?.data || err.message
       );
 
-      setError(getErrorMessage(err));
+      if (err.response?.status === 401) {
+        setError(
+          "Ta session a expiré. Veuillez te reconnecter."
+        );
+      } else {
+        setError(getErrorMessage(err));
+      }
     } finally {
       setLoading(false);
     }
   }
+
+  /* =========================================================
+     ÉCRAN DE CHARGEMENT
+  ========================================================= */
 
   if (checkingProfile) {
     return (
@@ -301,15 +339,25 @@ export default function CandidateProfile() {
     );
   }
 
+  /* =========================================================
+     AFFICHAGE DU FORMULAIRE
+  ========================================================= */
+
   return (
     <main className="candidate-profile-page">
       <div className="cp-container">
+
+        {/* EN-TÊTE */}
+
         <header className="cp-header">
           <div className="cp-brand">
             <span className="cp-brand-icon">SJ</span>
+
             <span>
               <strong>SunuJob AI</strong>
-              <small>Ton avenir professionnel commence ici</small>
+              <small>
+                Ton avenir professionnel commence ici
+              </small>
             </span>
           </div>
 
@@ -322,13 +370,19 @@ export default function CandidateProfile() {
           </button>
         </header>
 
+        {/* INTRODUCTION */}
+
         <section className="cp-intro">
-          <span className="cp-eyebrow">ESPACE CANDIDAT</span>
+          <span className="cp-eyebrow">
+            ESPACE CANDIDAT
+          </span>
+
           <h1>
             {existingProfile
               ? "Mets à jour ton profil"
               : "Construis ton profil professionnel"}
           </h1>
+
           <p>
             Complète tes informations pour permettre aux recruteurs
             de mieux connaître ton parcours et faciliter tes
@@ -337,9 +391,16 @@ export default function CandidateProfile() {
         </section>
 
         <div className="cp-layout">
+
+          {/* BARRE LATÉRALE */}
+
           <aside className="cp-sidebar">
             <div className="cp-sidebar-icon">✦</div>
-            <h2>Un profil complet, plus d'opportunités</h2>
+
+            <h2>
+              Un profil complet, plus d'opportunités
+            </h2>
+
             <p>
               Présente tes compétences, ton parcours et ton CV pour
               améliorer la visibilité de ta candidature.
@@ -347,6 +408,7 @@ export default function CandidateProfile() {
 
             <div className="cp-benefit">
               <span>✓</span>
+
               <div>
                 <strong>Profil professionnel</strong>
                 <small>Valorise ton parcours</small>
@@ -355,6 +417,7 @@ export default function CandidateProfile() {
 
             <div className="cp-benefit">
               <span>✓</span>
+
               <div>
                 <strong>CV accessible</strong>
                 <small>Prépare tes candidatures</small>
@@ -363,6 +426,7 @@ export default function CandidateProfile() {
 
             <div className="cp-benefit">
               <span>✓</span>
+
               <div>
                 <strong>Recommandations IA</strong>
                 <small>Découvre des offres pertinentes</small>
@@ -374,23 +438,37 @@ export default function CandidateProfile() {
             </div>
           </aside>
 
+          {/* FORMULAIRE */}
+
           <section className="cp-form-card">
+
             <div className="cp-form-heading">
               <div>
                 <h2>Informations du candidat</h2>
-                <p>Les champs marqués d'un * sont obligatoires.</p>
+                <p>
+                  Les champs marqués d'un * sont obligatoires.
+                </p>
               </div>
+
               <span className="cp-step">ÉTAPE 1</span>
             </div>
 
+            {/* MESSAGES */}
+
             {error && (
-              <div className="cp-alert cp-alert-error" role="alert">
+              <div
+                className="cp-alert cp-alert-error"
+                role="alert"
+              >
                 <strong>Attention :</strong> {error}
               </div>
             )}
 
             {success && (
-              <div className="cp-alert cp-alert-success" role="status">
+              <div
+                className="cp-alert cp-alert-success"
+                role="status"
+              >
                 {success}
               </div>
             )}
@@ -399,17 +477,27 @@ export default function CandidateProfile() {
               onSubmit={handleSubmit}
               encType="multipart/form-data"
             >
+
+              {/* SECTION 01 */}
+
               <div className="cp-section-title">
                 <span>01</span>
+
                 <div>
                   <h3>Informations personnelles</h3>
-                  <p>Les informations essentielles de ton profil</p>
+                  <p>
+                    Les informations essentielles de ton profil
+                  </p>
                 </div>
               </div>
 
               <div className="cp-grid">
+
                 <div className="cp-field cp-full">
-                  <label htmlFor="photo">Photo de profil</label>
+                  <label htmlFor="photo">
+                    Photo de profil
+                  </label>
+
                   <input
                     id="photo"
                     name="photo"
@@ -417,9 +505,11 @@ export default function CandidateProfile() {
                     accept="image/*"
                     onChange={handleChange}
                   />
+
                   <small>
                     Image JPG, PNG ou autre format image · 2 Mo maximum
                   </small>
+
                   {isBrowserFile(formData.photo) && (
                     <small>
                       Fichier sélectionné : {formData.photo.name}
@@ -428,7 +518,10 @@ export default function CandidateProfile() {
                 </div>
 
                 <div className="cp-field">
-                  <label htmlFor="date_of_birth">Date de naissance</label>
+                  <label htmlFor="date_of_birth">
+                    Date de naissance
+                  </label>
+
                   <input
                     id="date_of_birth"
                     name="date_of_birth"
@@ -439,7 +532,10 @@ export default function CandidateProfile() {
                 </div>
 
                 <div className="cp-field">
-                  <label htmlFor="country">Pays *</label>
+                  <label htmlFor="country">
+                    Pays *
+                  </label>
+
                   <input
                     id="country"
                     name="country"
@@ -451,7 +547,10 @@ export default function CandidateProfile() {
                 </div>
 
                 <div className="cp-field">
-                  <label htmlFor="city">Ville *</label>
+                  <label htmlFor="city">
+                    Ville *
+                  </label>
+
                   <input
                     id="city"
                     name="city"
@@ -464,7 +563,10 @@ export default function CandidateProfile() {
                 </div>
 
                 <div className="cp-field">
-                  <label htmlFor="address">Adresse</label>
+                  <label htmlFor="address">
+                    Adresse
+                  </label>
+
                   <input
                     id="address"
                     name="address"
@@ -476,19 +578,26 @@ export default function CandidateProfile() {
                 </div>
               </div>
 
+              {/* SECTION 02 */}
+
               <div className="cp-section-title">
                 <span>02</span>
+
                 <div>
                   <h3>Formation et expérience</h3>
-                  <p>Présente ton niveau et ta spécialité</p>
+                  <p>
+                    Présente ton niveau et ta spécialité
+                  </p>
                 </div>
               </div>
 
               <div className="cp-grid">
+
                 <div className="cp-field">
                   <label htmlFor="education_level">
                     Niveau d'études *
                   </label>
+
                   <select
                     id="education_level"
                     name="education_level"
@@ -496,9 +605,15 @@ export default function CandidateProfile() {
                     onChange={handleChange}
                     required
                   >
-                    <option value="">Sélectionner un niveau</option>
+                    <option value="">
+                      Sélectionner un niveau
+                    </option>
+
                     {educationOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
+                      <option
+                        key={option.value}
+                        value={option.value}
+                      >
                         {option.label}
                       </option>
                     ))}
@@ -509,6 +624,7 @@ export default function CandidateProfile() {
                   <label htmlFor="years_of_experience">
                     Années d'expérience *
                   </label>
+
                   <input
                     id="years_of_experience"
                     name="years_of_experience"
@@ -525,6 +641,7 @@ export default function CandidateProfile() {
                   <label htmlFor="field_of_study">
                     Domaine de formation *
                   </label>
+
                   <input
                     id="field_of_study"
                     name="field_of_study"
@@ -540,6 +657,7 @@ export default function CandidateProfile() {
                   <label htmlFor="biography">
                     Présentation professionnelle
                   </label>
+
                   <textarea
                     id="biography"
                     name="biography"
@@ -549,13 +667,17 @@ export default function CandidateProfile() {
                     rows={5}
                     maxLength={2000}
                   />
+
                   <small>
                     {formData.biography.length}/2000 caractères
                   </small>
                 </div>
 
                 <div className="cp-field">
-                  <label htmlFor="availability">Disponibilité *</label>
+                  <label htmlFor="availability">
+                    Disponibilité *
+                  </label>
+
                   <select
                     id="availability"
                     name="availability"
@@ -566,9 +688,11 @@ export default function CandidateProfile() {
                     <option value="AVAILABLE">
                       Disponible immédiatement
                     </option>
+
                     <option value="NOT_AVAILABLE">
                       Pas disponible
                     </option>
+
                     <option value="LOOKING">
                       En recherche active
                     </option>
@@ -576,7 +700,10 @@ export default function CandidateProfile() {
                 </div>
 
                 <div className="cp-field cp-full">
-                  <label htmlFor="resume">CV professionnel</label>
+                  <label htmlFor="resume">
+                    CV professionnel
+                  </label>
+
                   <input
                     id="resume"
                     name="resume"
@@ -584,7 +711,11 @@ export default function CandidateProfile() {
                     accept=".pdf,.doc,.docx"
                     onChange={handleChange}
                   />
-                  <small>Formats PDF, DOC ou DOCX · 5 Mo maximum</small>
+
+                  <small>
+                    Formats PDF, DOC ou DOCX · 5 Mo maximum
+                  </small>
+
                   {isBrowserFile(formData.resume) && (
                     <small>
                       Fichier sélectionné : {formData.resume.name}
@@ -592,6 +723,8 @@ export default function CandidateProfile() {
                   )}
                 </div>
               </div>
+
+              {/* BOUTON D'ENREGISTREMENT */}
 
               <div className="cp-form-footer">
                 <p>
@@ -611,13 +744,17 @@ export default function CandidateProfile() {
                       : "Créer mon profil →"}
                 </button>
               </div>
+
             </form>
           </section>
         </div>
 
+        {/* PIED DE PAGE */}
+
         <footer className="cp-footer">
           © {new Date().getFullYear()} SunuJob AI · Conçu au Sénégal 🇸🇳
         </footer>
+
       </div>
     </main>
   );

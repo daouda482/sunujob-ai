@@ -1,25 +1,23 @@
 
 import { useCallback, useEffect, useState } from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
-import api from "../api/axios";
+import { Link, NavLink } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
+import api from "../services/api.js";
 import "./Navbar.css";
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const location = useLocation();
 
-  const storedUser = (() => {
-    try {
-      return JSON.parse(localStorage.getItem("user") || "null");
-    } catch {
-      return null;
-    }
-  })();
+  // Authentification centralisée.
+  const {
+    user,
+    isAuthenticated,
+    loading,
+  } = useAuth();
 
-  const isLoggedIn = Boolean(
-    localStorage.getItem("access") && storedUser
-  );
+  // Vérification du rôle.
+  const userRole = String(user?.role || "").toUpperCase();
 
   const dashboardByRole = {
     CANDIDATE: "/candidate/dashboard",
@@ -28,26 +26,55 @@ export default function Navbar() {
     ADMIN: "/admin/dashboard",
   };
 
-  const dashboardLink = dashboardByRole[storedUser?.role] || "/";
+  const dashboardLink =
+    dashboardByRole[userRole] || "/";
 
+  const isLoggedIn =
+    !loading && isAuthenticated && Boolean(user);
+
+  // Liens de navigation.
   const links = [
-    { label: "Accueil", to: "/", end: true },
-    { label: "Offres d'emploi", to: "/jobs" },
-    { label: "Fonctionnalités", to: "/#fonctionnalites", anchor: true },
-    { label: "À propos", to: "/#apropos", anchor: true },
+    {
+      label: "Accueil",
+      to: "/",
+      end: true,
+    },
+    {
+      label: "Offres d'emploi",
+      to: "/jobs",
+    },
+    {
+      label: "Fonctionnalités",
+      to: "/#fonctionnalites",
+      anchor: true,
+    },
+    {
+      label: "À propos",
+      to: "/#apropos",
+      anchor: true,
+    },
   ];
 
-  const closeMenu = () => setMenuOpen(false);
+  // Fermer le menu mobile.
+  const closeMenu = () => {
+    setMenuOpen(false);
+  };
 
+  // Récupérer le nombre de notifications non lues.
   const loadUnreadCount = useCallback(async () => {
-    if (!localStorage.getItem("access")) {
+    if (!isAuthenticated || !user) {
       setUnreadCount(0);
       return;
     }
 
     try {
-      const response = await api.get("notifications/unread-count/");
-      setUnreadCount(Number(response.data?.unread_count) || 0);
+      const response = await api.get(
+        "notifications/unread-count/"
+      );
+
+      setUnreadCount(
+        Number(response.data?.unread_count) || 0
+      );
     } catch (error) {
       if (error.response?.status === 401) {
         setUnreadCount(0);
@@ -58,28 +85,41 @@ export default function Navbar() {
         );
       }
     }
-  }, []);
+  }, [isAuthenticated, user]);
 
+  // Actualisation automatique des notifications.
   useEffect(() => {
-  if (!isLoggedIn) {
-    setUnreadCount(0);
-    return undefined;
-  }
+    if (loading) return undefined;
 
-  loadUnreadCount();
+    if (!isAuthenticated || !user) {
+      setUnreadCount(0);
+      return undefined;
+    }
 
-  const intervalId = window.setInterval(() => {
     loadUnreadCount();
-  }, 30000);
 
-  return () => {
-    window.clearInterval(intervalId);
-  };
-}, [isLoggedIn, loadUnreadCount]);
+    const intervalId = window.setInterval(() => {
+      loadUnreadCount();
+    }, 30000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [
+    loading,
+    isAuthenticated,
+    user,
+    loadUnreadCount,
+  ]);
 
   return (
     <header className="sj-navbar">
       <div className="sj-navbar-inner">
+
+        {/* =====================================
+            LOGO SUNUJOB AI
+        ===================================== */}
+
         <Link
           to="/"
           className="sj-brand"
@@ -98,7 +138,14 @@ export default function Navbar() {
           </span>
         </Link>
 
-        <nav className="sj-desktop-nav" aria-label="Navigation principale">
+        {/* =====================================
+            NAVIGATION DESKTOP
+        ===================================== */}
+
+        <nav
+          className="sj-desktop-nav"
+          aria-label="Navigation principale"
+        >
           {links.map((link) =>
             link.anchor ? (
               <a
@@ -114,7 +161,9 @@ export default function Navbar() {
                 to={link.to}
                 end={link.end}
                 className={({ isActive }) =>
-                  `sj-nav-link${isActive ? " sj-nav-link-active" : ""}`
+                  `sj-nav-link${
+                    isActive ? " sj-nav-link-active" : ""
+                  }`
                 }
               >
                 {link.label}
@@ -123,9 +172,16 @@ export default function Navbar() {
           )}
         </nav>
 
+        {/* =====================================
+            ACTIONS DESKTOP
+        ===================================== */}
+
         <div className="sj-navbar-actions">
+
           {isLoggedIn ? (
             <>
+              {/* Notifications */}
+
               <Link
                 to="/notifications"
                 className="sj-notification-btn"
@@ -159,6 +215,8 @@ export default function Navbar() {
                 )}
               </Link>
 
+              {/* Tableau de bord selon le rôle */}
+
               <Link
                 to={dashboardLink}
                 className="sj-account-btn"
@@ -169,6 +227,8 @@ export default function Navbar() {
             </>
           ) : (
             <>
+              {/* Connexion */}
+
               <Link
                 to="/login"
                 className="sj-login-btn"
@@ -177,24 +237,39 @@ export default function Navbar() {
                 Connexion
               </Link>
 
+              {/* Inscription */}
+
               <Link
                 to="/register"
                 className="sj-register-btn"
                 onClick={closeMenu}
               >
                 <span>Créer un compte</span>
-                <span className="sj-register-arrow" aria-hidden="true">
+
+                <span
+                  className="sj-register-arrow"
+                  aria-hidden="true"
+                >
                   →
                 </span>
               </Link>
             </>
           )}
+
         </div>
+
+        {/* =====================================
+            BOUTON MENU MOBILE
+        ===================================== */}
 
         <button
           type="button"
-          className={`sj-menu-toggle${menuOpen ? " is-open" : ""}`}
-          aria-label={menuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+          className={`sj-menu-toggle${
+            menuOpen ? " is-open" : ""
+          }`}
+          aria-label={
+            menuOpen ? "Fermer le menu" : "Ouvrir le menu"
+          }
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((open) => !open)}
         >
@@ -202,10 +277,20 @@ export default function Navbar() {
           <span />
           <span />
         </button>
+
       </div>
 
-      <div className={`sj-mobile-menu${menuOpen ? " is-open" : ""}`}>
+      {/* =====================================
+          MENU MOBILE
+      ===================================== */}
+
+      <div
+        className={`sj-mobile-menu${
+          menuOpen ? " is-open" : ""
+        }`}
+      >
         <nav aria-label="Navigation mobile">
+
           {links.map((link) =>
             link.anchor ? (
               <a
@@ -222,7 +307,9 @@ export default function Navbar() {
                 to={link.to}
                 end={link.end}
                 className={({ isActive }) =>
-                  `sj-mobile-link${isActive ? " sj-mobile-link-active" : ""}`
+                  `sj-mobile-link${
+                    isActive ? " sj-mobile-link-active" : ""
+                  }`
                 }
                 onClick={closeMenu}
               >
@@ -233,12 +320,15 @@ export default function Navbar() {
 
           {isLoggedIn ? (
             <>
+              {/* Notifications mobile */}
+
               <Link
                 to="/notifications"
                 className="sj-mobile-link"
                 onClick={closeMenu}
               >
                 Notifications
+
                 {unreadCount > 0 && (
                   <span className="sj-mobile-notification-count">
                     {unreadCount} non lue(s)
@@ -246,16 +336,20 @@ export default function Navbar() {
                 )}
               </Link>
 
+              {/* Espace utilisateur */}
+
               <Link
                 to={dashboardLink}
                 className="sj-register-btn sj-mobile-cta"
                 onClick={closeMenu}
               >
-                Mon espace <span aria-hidden="true">→</span>
+                Mon espace
+                <span aria-hidden="true">→</span>
               </Link>
             </>
           ) : (
             <div className="sj-mobile-actions">
+
               <Link
                 to="/login"
                 className="sj-login-btn"
@@ -269,10 +363,13 @@ export default function Navbar() {
                 className="sj-register-btn"
                 onClick={closeMenu}
               >
-                Créer un compte <span aria-hidden="true">→</span>
+                Créer un compte
+                <span aria-hidden="true">→</span>
               </Link>
+
             </div>
           )}
+
         </nav>
       </div>
     </header>

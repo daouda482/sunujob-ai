@@ -1,24 +1,28 @@
 
 import axios from "axios";
 
-const API_BASE_URL = "http://127.0.0.1:8000/api/";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  "http://127.0.0.1:8000/api/";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
+    Accept: "application/json",
   },
 });
 
-// Instance indépendante : le renouvellement ne déclenche pas
-// les intercepteurs de l'instance principale.
+// Instance indépendante pour renouveler le JWT.
 const refreshClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
+    Accept: "application/json",
   },
 });
 
+// Ajouter automatiquement le jeton access.
 api.interceptors.request.use(
   (config) => {
     const accessToken = localStorage.getItem("access");
@@ -35,30 +39,33 @@ api.interceptors.request.use(
 
 let refreshPromise = null;
 
+// Ne jamais tenter un refresh sur ces routes.
+const shouldSkipRefresh = (url = "") => {
+  return (
+    url.includes("token/") ||
+    url.includes("logout/")
+  );
+};
+
 api.interceptors.response.use(
   (response) => response,
+
   async (error) => {
     const originalRequest = error.config;
     const status = error.response?.status;
-    const data = error.response?.data;
 
-    const tokenInvalid =
-      data?.code === "token_not_valid" ||
-      (Array.isArray(data?.messages) &&
-        data.messages.some((item) => item?.token_class));
-
-    // Renouveler uniquement après un 401 et une seule fois par requête.
     if (
       status !== 401 ||
       !originalRequest ||
       originalRequest._retry ||
-      originalRequest.url?.includes("auth/token/refresh/")
+      shouldSkipRefresh(originalRequest.url)
     ) {
       return Promise.reject(error);
     }
 
     const refreshToken = localStorage.getItem("refresh");
 
+    // Aucun refresh disponible : déconnexion locale.
     if (!refreshToken) {
       localStorage.removeItem("access");
       localStorage.removeItem("refresh");
@@ -74,9 +81,10 @@ api.interceptors.response.use(
     originalRequest._retry = true;
 
     try {
+      // Une seule demande de renouvellement pour les requêtes simultanées.
       if (!refreshPromise) {
         refreshPromise = refreshClient
-          .post("auth/token/refresh/", {
+          .post("token/refresh/", {
             refresh: refreshToken,
           })
           .then((response) => response.data)
@@ -88,21 +96,29 @@ api.interceptors.response.use(
       const tokenData = await refreshPromise;
 
       if (!tokenData?.access) {
-        throw new Error("Le serveur n'a pas retourné de jeton d'accès.");
+        throw new Error(
+          "Le serveur n'a pas retourné de nouveau jeton access."
+        );
       }
 
+      // Enregistrer le nouveau jeton.
       localStorage.setItem("access", tokenData.access);
 
-      // Certaines configurations JWT font tourner le refresh token.
+      // Enregistrer le refresh si Django en retourne un nouveau.
       if (tokenData.refresh) {
         localStorage.setItem("refresh", tokenData.refresh);
       }
 
+      // Rejouer la requête initiale avec le nouveau access.
       originalRequest.headers = originalRequest.headers || {};
-      originalRequest.headers.Authorization = `Bearer ${tokenData.access}`;
+
+      originalRequest.headers.Authorization =
+        `Bearer ${tokenData.access}`;
 
       return api(originalRequest);
+
     } catch (refreshError) {
+      // Le refresh est invalide, expiré ou blacklisté.
       localStorage.removeItem("access");
       localStorage.removeItem("refresh");
       localStorage.removeItem("user");

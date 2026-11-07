@@ -7,6 +7,8 @@ import {
   useLocation,
 } from "react-router-dom";
 
+import { useAuth } from "./context/AuthContext.jsx";
+
 // =====================================================
 // COMPOSANTS COMMUNS
 // =====================================================
@@ -93,35 +95,6 @@ import AdminSupport from "./pages/admin/AdminSupport.jsx";
 import SupportCenter from "./pages/support/SupportCenter.jsx";
 
 // =====================================================
-// UTILITAIRES DE SESSION
-// =====================================================
-
-function getStoredUser() {
-  try {
-    const storedUser =
-      localStorage.getItem("user") ||
-      sessionStorage.getItem("user");
-
-    const user = JSON.parse(storedUser || "null");
-
-    if (!user || typeof user !== "object" || Array.isArray(user)) {
-      return null;
-    }
-
-    return user;
-  } catch {
-    return null;
-  }
-}
-
-function hasStoredAccessToken() {
-  return Boolean(
-    localStorage.getItem("access") ||
-    sessionStorage.getItem("access")
-  );
-}
-
-// =====================================================
 // GESTION DES ERREURS REACT
 // =====================================================
 
@@ -193,6 +166,10 @@ class AppErrorBoundary extends Component {
 function AppRoutes() {
   const location = useLocation();
 
+  // Utilisation du contexte centralisé d'authentification.
+  const { user } = useAuth();
+
+  // Identification de la zone visitée.
   const isRecruiterPage =
     location.pathname.startsWith("/recruiter");
 
@@ -202,26 +179,34 @@ function AppRoutes() {
   const isCandidatePage =
     location.pathname.startsWith("/candidate");
 
+  // Détermination de l'affichage de la navigation publique.
   const showPublicLayout =
     !isRecruiterPage &&
     !isAdminPage &&
     !isCandidatePage;
 
-  const storedUser = getStoredUser();
-
+  // Identification de l'administrateur connecté.
   const isAdminUser =
-    hasStoredAccessToken() &&
-    storedUser?.role?.toUpperCase() === "ADMIN";
+    user?.role?.toUpperCase() === "ADMIN";
 
   return (
     <>
-      {/* Navigation publique */}
+      {/* =========================================
+          NAVIGATION PUBLIQUE
+      ========================================= */}
+
       {showPublicLayout && <Navbar />}
 
-      {/* Navigation latérale administrateur */}
+      {/* =========================================
+          NAVIGATION ADMINISTRATEUR
+      ========================================= */}
+
       {isAdminPage && isAdminUser && <AdminNavigation />}
 
-      {/* Contenu principal */}
+      {/* =========================================
+          CONTENU PRINCIPAL
+      ========================================= */}
+
       <div className={isAdminPage ? "admin-main-content" : undefined}>
         <Routes>
 
@@ -244,7 +229,6 @@ function AppRoutes() {
             element={<NotificationsPage />}
           />
 
-
           {/* =========================================
               ESPACE CANDIDAT
           ========================================= */}
@@ -255,6 +239,7 @@ function AppRoutes() {
             }
           >
             <Route element={<ProtectedLayout />}>
+
               <Route
                 path="/candidate/dashboard"
                 element={<CandidateDashboard />}
@@ -331,9 +316,9 @@ function AppRoutes() {
                   <ComingSoon title="Paramètres de votre espace candidat" />
                 }
               />
+
             </Route>
           </Route>
-
 
           {/* =========================================
               ESPACE RECRUTEUR
@@ -345,6 +330,7 @@ function AppRoutes() {
             }
           >
             <Route element={<ProtectedLayout />}>
+
               <Route
                 path="/recruiter/dashboard"
                 element={<RecruiterDashboard />}
@@ -404,9 +390,9 @@ function AppRoutes() {
                 path="/recruiter/company-verification"
                 element={<CompanyVerification />}
               />
+
             </Route>
           </Route>
-
 
           {/* =========================================
               ORGANISME DE FORMATION
@@ -427,7 +413,6 @@ function AppRoutes() {
             </Route>
           </Route>
 
-
           {/* =========================================
               ESPACE SUPPORT
           ========================================= */}
@@ -447,7 +432,6 @@ function AppRoutes() {
             </Route>
           </Route>
 
-
           {/* =========================================
               ESPACE ADMINISTRATEUR
           ========================================= */}
@@ -458,6 +442,7 @@ function AppRoutes() {
             }
           >
             <Route element={<ProtectedLayout />}>
+
               <Route
                 path="/admin"
                 element={
@@ -527,9 +512,9 @@ function AppRoutes() {
                 path="/admin/support"
                 element={<AdminSupport />}
               />
+
             </Route>
           </Route>
-
 
           {/* =========================================
               PAGE INTROUVABLE
@@ -543,7 +528,10 @@ function AppRoutes() {
         </Routes>
       </div>
 
-      {/* Pied de page public */}
+      {/* =========================================
+          PIED DE PAGE PUBLIC
+      ========================================= */}
+
       {showPublicLayout && <Footer />}
     </>
   );

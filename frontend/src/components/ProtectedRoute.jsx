@@ -1,12 +1,6 @@
 
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-
-const VALID_ROLES = [
-  "CANDIDATE",
-  "RECRUITER",
-  "TRAINING_PROVIDER",
-  "ADMIN",
-];
+import { useAuth } from "../context/AuthContext";
 
 const ROLE_DESTINATIONS = {
   CANDIDATE: "/candidate/dashboard",
@@ -15,26 +9,37 @@ const ROLE_DESTINATIONS = {
   ADMIN: "/admin/dashboard",
 };
 
-function clearStoredSession() {
-  ["access", "refresh", "user"].forEach((key) => {
-    localStorage.removeItem(key);
-    sessionStorage.removeItem(key);
-  });
-}
-
 export default function ProtectedRoute({ allowedRoles = [] }) {
+  const { user, loading, isAuthenticated } = useAuth();
   const location = useLocation();
 
-  const accessToken =
-    localStorage.getItem("access") ||
-    sessionStorage.getItem("access");
+  // 1. Attendre la vérification de la session.
+  if (loading) {
+    return (
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ minHeight: "60vh" }}
+      >
+        <div className="text-center">
+          <div
+            className="spinner-border text-primary mb-3"
+            role="status"
+          >
+            <span className="visually-hidden">
+              Chargement...
+            </span>
+          </div>
 
-  const storedUser =
-    localStorage.getItem("user") ||
-    sessionStorage.getItem("user");
+          <p className="text-muted mb-0">
+            Vérification de votre session...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-  // 1. Vérifier la présence de la session.
-  if (!accessToken || !storedUser) {
+  // 2. Vérifier si l'utilisateur est connecté.
+  if (!isAuthenticated || !user) {
     return (
       <Navigate
         to="/login"
@@ -44,48 +49,28 @@ export default function ProtectedRoute({ allowedRoles = [] }) {
     );
   }
 
-  // 2. Vérifier les informations utilisateur.
-  let user;
+  // 3. Vérifier le rôle de l'utilisateur.
+  const userRole = String(user.role || "").toUpperCase();
 
-  try {
-    user = JSON.parse(storedUser);
-
-    if (
-      !user ||
-      typeof user !== "object" ||
-      Array.isArray(user)
-    ) {
-      throw new Error("Utilisateur invalide.");
-    }
-
-    user.role = String(user.role || "").toUpperCase();
-
-    if (!VALID_ROLES.includes(user.role)) {
-      throw new Error("Rôle utilisateur invalide.");
-    }
-  } catch {
-    clearStoredSession();
-
-    return (
-      <Navigate
-        to="/login"
-        state={{ from: location }}
-        replace
-      />
-    );
+  if (!ROLE_DESTINATIONS[userRole]) {
+    return <Navigate to="/login" replace />;
   }
 
-  // 3. Vérifier les rôles autorisés.
+  // 4. Vérifier les rôles autorisés pour cette route.
   if (
     allowedRoles.length > 0 &&
-    !allowedRoles.includes(user.role)
+    !allowedRoles
+      .map((role) => String(role).toUpperCase())
+      .includes(userRole)
   ) {
-    const destination =
-      ROLE_DESTINATIONS[user.role] || "/login";
-
-    return <Navigate to={destination} replace />;
+    return (
+      <Navigate
+        to={ROLE_DESTINATIONS[userRole]}
+        replace
+      />
+    );
   }
 
-  // 4. Autoriser l'accès à la page.
+  // 5. Autoriser l'accès.
   return <Outlet />;
 }

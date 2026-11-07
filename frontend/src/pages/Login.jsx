@@ -16,9 +16,8 @@ import {
   Users,
 } from "lucide-react";
 
-import api from "../api/axios";
+import { useAuth } from "../context/AuthContext";
 import "./Login.css";
-
 
 const VALID_ROLES = [
   "CANDIDATE",
@@ -34,27 +33,22 @@ const ROLE_DESTINATIONS = {
   ADMIN: "/admin/dashboard",
 };
 
-
-function clearStoredSession() {
-  ["access", "refresh", "user"].forEach((key) => {
-    localStorage.removeItem(key);
-    sessionStorage.removeItem(key);
-  });
-}
-
-
+// Vérification de la destination demandée.
 function getSafeDestination(pathname, role) {
   if (!pathname || typeof pathname !== "string") {
     return ROLE_DESTINATIONS[role];
   }
 
-  // Empêche les redirections vers un autre domaine.
   if (!pathname.startsWith("/") || pathname.startsWith("//")) {
     return ROLE_DESTINATIONS[role];
   }
 
   const allowedPrefixes = {
-    CANDIDATE: ["/candidate/", "/jobs/", "/application-success"],
+    CANDIDATE: [
+      "/candidate/",
+      "/jobs/",
+      "/application-success",
+    ],
     RECRUITER: ["/recruiter/"],
     TRAINING_PROVIDER: ["/training-provider/"],
     ADMIN: ["/admin/"],
@@ -73,15 +67,16 @@ function getSafeDestination(pathname, role) {
     : ROLE_DESTINATIONS[role];
 }
 
-
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Authentification centralisée.
+  const { login } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -101,58 +96,25 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // 1. Authentification Django.
-      const response = await api.post("token/", {
+      // 1. Connexion via AuthContext.
+      // AuthContext se charge de récupérer les jetons et le profil.
+      const authenticatedUser = await login({
         email: normalizedEmail,
         password,
       });
 
-      const access = response.data?.access;
-      const refresh = response.data?.refresh;
-
-      if (!access || !refresh) {
-        throw new Error(
-          "Le serveur n'a pas retourné les jetons d'authentification nécessaires."
-        );
-      }
-
-      // 2. Nettoyage des anciennes sessions.
-      clearStoredSession();
-
-      // 3. Enregistrement temporaire des jetons.
-      const storage = rememberMe
-        ? localStorage
-        : sessionStorage;
-
-      storage.setItem("access", access);
-      storage.setItem("refresh", refresh);
-
-      // 4. Récupération du profil connecté.
-      const profileResponse = await api.get(
-        "users/profile/",
-        {
-          headers: {
-            Authorization: `Bearer ${access}`,
-          },
-        }
-      );
-
-      const user =
-        profileResponse.data?.user ||
-        profileResponse.data;
-
       if (
-        !user ||
-        typeof user !== "object" ||
-        Array.isArray(user)
+        !authenticatedUser ||
+        typeof authenticatedUser !== "object" ||
+        Array.isArray(authenticatedUser)
       ) {
         throw new Error(
-          "Le profil utilisateur retourné par le serveur est invalide."
+          "Impossible de récupérer votre profil utilisateur."
         );
       }
 
-      // 5. Vérification du rôle.
-      const role = String(user.role || "")
+      // 2. Vérification du rôle.
+      const role = String(authenticatedUser.role || "")
         .trim()
         .toUpperCase();
 
@@ -162,18 +124,7 @@ export default function Login() {
         );
       }
 
-      // 6. Conservation du rôle normalisé.
-      const authenticatedUser = {
-        ...user,
-        role,
-      };
-
-      storage.setItem(
-        "user",
-        JSON.stringify(authenticatedUser)
-      );
-
-      // 7. Redirection adaptée au rôle.
+      // 3. Redirection adaptée au rôle.
       const requestedPath =
         location.state?.from?.pathname;
 
@@ -187,7 +138,7 @@ export default function Login() {
       });
 
     } catch (err) {
-      clearStoredSession();
+      console.error("Erreur de connexion :", err);
 
       if (err.response?.status === 401) {
         setError(
@@ -203,8 +154,7 @@ export default function Login() {
         );
       } else if (
         err.message?.includes("rôle invalide") ||
-        err.message?.includes("profil utilisateur") ||
-        err.message?.includes("jetons d'authentification")
+        err.message?.includes("profil utilisateur")
       ) {
         setError(err.message);
       } else if (!err.response) {
@@ -223,7 +173,6 @@ export default function Login() {
       setLoading(false);
     }
   }
-
 
   return (
     <main className="sj-login-page">
@@ -309,7 +258,6 @@ export default function Login() {
 
         </section>
 
-
         <section className="sj-login-form-panel">
 
           <div className="sj-login-form-top">
@@ -327,7 +275,6 @@ export default function Login() {
             </p>
 
           </div>
-
 
           <div className="sj-login-form-content">
 
@@ -350,7 +297,6 @@ export default function Login() {
 
             </div>
 
-
             {error && (
               <div
                 className="sj-login-error"
@@ -360,7 +306,6 @@ export default function Login() {
                 <p>{error}</p>
               </div>
             )}
-
 
             <form
               className="sj-login-form"
@@ -395,7 +340,6 @@ export default function Login() {
 
                 </div>
               </div>
-
 
               <div className="sj-login-field">
 
@@ -455,28 +399,6 @@ export default function Login() {
                 </div>
               </div>
 
-
-              <label className="sj-login-remember">
-
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(event) =>
-                    setRememberMe(event.target.checked)
-                  }
-                />
-
-                <span className="sj-login-checkbox-ui">
-                  <CheckCircle2 size={14} />
-                </span>
-
-                <span>
-                  Rester connecté sur cet appareil
-                </span>
-
-              </label>
-
-
               <button
                 type="submit"
                 className="sj-login-submit"
@@ -499,7 +421,6 @@ export default function Login() {
 
             </form>
 
-
             <div className="sj-login-security-note">
 
               <ShieldCheck size={18} />
@@ -512,7 +433,6 @@ export default function Login() {
 
             </div>
 
-
             <div className="sj-login-platform-note">
 
               <Users size={16} />
@@ -523,14 +443,12 @@ export default function Login() {
 
             </div>
 
-
             <p className="sj-login-register-mobile">
               Vous découvrez SunuJob AI ?
               <Link to="/register"> Créer un compte</Link>
             </p>
 
           </div>
-
 
           <div className="sj-login-form-footer">
 
