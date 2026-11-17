@@ -1654,3 +1654,205 @@
     align-self: flex-start;
   }
 }
+
+/* =========================================================
+   FINITIONS VISUELLES — ADMIN DASHBOARD SUNUJOB AI
+   Amélioration progressive sans modifier la logique
+========================================================= */
+
+/* Contenu général */
+.admin-dashboard {
+  background-color: #f4f6fc;
+  background-image:
+    radial-gradient(circle at 5% 5%, rgba(99, 102, 241, 0.075), transparent 28%),
+    radial-gradient(circle at 95% 15%, rgba(14, 165, 233, 0.055), transparent 25%),
+    linear-gradient(180deg, #f8f9fd 0%, #f3f5fb 100%);
+}
+
+/* En-tête */
+.admin-dashboard__header {
+  box-shadow:
+    0 20px 45px rgba(35, 48, 105, 0.16),
+    0 5px 14px rgba(35, 48, 105, 0.07),
+    inset 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.admin-dashboard__header h1 {
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+}
+
+.admin-refresh-button:focus-visible,
+.admin-log-refresh:focus-visible,
+.admin-log-tabs button:focus-visible,
+.admin-error button:focus-visible {
+  outline: 3px solid #a5b4fc;
+  outline-offset: 3px;
+}
+
+/* Cartes statistiques */
+.admin-stat-card {
+  border-color: #e7eaf3;
+  box-shadow:
+    0 4px 12px rgba(31, 45, 80, 0.025),
+    0 12px 25px rgba(31, 45, 80, 0.025);
+}
+
+.admin-stat-card__label {
+  letter-spacing: 0.1px;
+}
+
+.admin-stat-card__value {
+  letter-spacing: -1.3px;
+}
+
+/* Panneaux */
+.admin-panel,
+.admin-activity-section {
+  box-shadow:
+    0 3px 10px rgba(31, 45, 80, 0.025),
+    0 12px 28px rgba(31, 45, 80, 0.035);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.admin-panel:hover,
+.admin-activity-section:hover {
+  border-color: #dce2f1;
+  box-shadow:
+    0 5px 15px rgba(31, 45, 80, 0.035),
+    0 16px 32px rgba(31, 45, 80, 0.045);
+}
+
+/* Titres des sections */
+.admin-section-heading h2,
+.admin-panel__header h2 {
+  letter-spacing: -0.45px;
+}
+
+.admin-section-heading p,
+.admin-panel__header p {
+  letter-spacing: 0.05px;
+}
+
+/* Tableaux */
+.admin-table thead {
+  background: linear-gradient(180deg, #fafbff, #f5f7fc);
+}
+
+.admin-table th {
+  color: #69758c;
+  letter-spacing: 0.8px;
+}
+
+.admin-table td {
+  transition: background 150ms ease;
+}
+
+.admin-table tbody tr:hover td {
+  background: #f6f8ff;
+}
+
+.admin-table tbody tr:hover td strong {
+  color: #4338ca;
+}
+
+/* Badges */
+.admin-status {
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.admin-status:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(31, 45, 80, 0.06);
+}
+
+/* Journal d'activité */
+.admin-log-tabs button {
+  transition:
+    color 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.admin-log-item {
+  box-shadow: 0 2px 7px rgba(31, 45, 80, 0.018);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.admin-log-item:hover {
+  transform: translateY(-2px);
+  border-color: #d9def8;
+  box-shadow: 0 7px 18px rgba(45, 59, 109, 0.055);
+}
+
+.admin-log-item__icon {
+  flex-shrink: 0;
+}
+
+.admin-log-description {
+  letter-spacing: 0.1px;
+}
+
+/* Boutons et raccourcis */
+.admin-users-shortcut,
+.admin-log-refresh,
+.admin-error button {
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.admin-users-shortcut:hover,
+.admin-log-refresh:hover {
+  box-shadow: 0 5px 13px rgba(55, 48, 163, 0.09);
+}
+
+/* Champs de recherche et filtres */
+.admin-log-filters input:hover,
+.admin-log-filters select:hover {
+  border-color: #cbd3e8;
+}
+
+.admin-log-filters input:focus,
+.admin-log-filters select:focus {
+  outline: none;
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+/* Petits écrans */
+@media (max-width: 760px) {
+  .admin-panel:hover,
+  .admin-activity-section:hover {
+    box-shadow: 0 5px 18px rgba(31, 45, 80, 0.035);
+  }
+
+  .admin-log-item:hover {
+    transform: none;
+  }
+}
+
+/* Respect des préférences de mouvement */
+@media (prefers-reduced-motion: reduce) {
+  .admin-stat-card,
+  .admin-panel,
+  .admin-activity-section,
+  .admin-log-item,
+  .admin-status,
+  .admin-log-tabs button,
+  .admin-users-shortcut,
+  .admin-log-refresh {
+    transition: none !important;
+  }
+}
+

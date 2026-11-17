@@ -7,9 +7,13 @@ import React, {
   useState,
 } from "react";
 
-import api from "../services/api";
+// Utilisation du client Axios central.
+import api from "../api/axios";
 
-// Création du contexte d'authentification.
+// ============================================================
+// CONTEXTE D'AUTHENTIFICATION
+// ============================================================
+
 const AuthContext = createContext(null);
 
 // Clés utilisées dans le Local Storage.
@@ -19,44 +23,72 @@ const STORAGE_KEYS = {
   USER: "user",
 };
 
-// Nettoyage de la session locale.
+
+// ============================================================
+// GESTION DU STOCKAGE
+// ============================================================
+
+// Nettoyer complètement la session locale.
 const clearAuthStorage = () => {
   localStorage.removeItem(STORAGE_KEYS.ACCESS);
   localStorage.removeItem(STORAGE_KEYS.REFRESH);
   localStorage.removeItem(STORAGE_KEYS.USER);
 };
 
-// Enregistrement des informations de session.
+// Enregistrer les informations de session.
 const saveAuthStorage = (tokens, user) => {
-  localStorage.setItem(STORAGE_KEYS.ACCESS, tokens.access);
+  localStorage.setItem(
+    STORAGE_KEYS.ACCESS,
+    tokens.access
+  );
 
   if (tokens.refresh) {
-    localStorage.setItem(STORAGE_KEYS.REFRESH, tokens.refresh);
+    localStorage.setItem(
+      STORAGE_KEYS.REFRESH,
+      tokens.refresh
+    );
   }
 
-  localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+  localStorage.setItem(
+    STORAGE_KEYS.USER,
+    JSON.stringify(user)
+  );
 };
 
 // Récupération sécurisée de l'utilisateur enregistré.
 const getStoredUser = () => {
   try {
     const user = localStorage.getItem(STORAGE_KEYS.USER);
+
     return user ? JSON.parse(user) : null;
   } catch {
     return null;
   }
 };
 
-// Fournisseur global d'authentification.
+
+// ============================================================
+// FOURNISSEUR GLOBAL D'AUTHENTIFICATION
+// ============================================================
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(getStoredUser);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Vérifier la session au chargement de l'application.
+
+  // ==========================================================
+  // CHARGEMENT DE L'UTILISATEUR
+  // ==========================================================
+
   const loadUser = useCallback(async () => {
-    const accessToken = localStorage.getItem(STORAGE_KEYS.ACCESS);
-    const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH);
+    const accessToken = localStorage.getItem(
+      STORAGE_KEYS.ACCESS
+    );
+
+    const refreshToken = localStorage.getItem(
+      STORAGE_KEYS.REFRESH
+    );
 
     if (!accessToken && !refreshToken) {
       setUser(null);
@@ -65,6 +97,8 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
+      // Le client Axios central ajoute automatiquement
+      // le JWT et renouvelle le token si nécessaire.
       const response = await api.get("users/profile/");
 
       setUser(response.data);
@@ -73,25 +107,43 @@ export const AuthProvider = ({ children }) => {
         STORAGE_KEYS.USER,
         JSON.stringify(response.data)
       );
+
     } catch (err) {
       clearAuthStorage();
       setUser(null);
+
+      console.error(
+        "Erreur lors du chargement du profil :",
+        err.response?.data || err.message
+      );
+
     } finally {
       setLoading(false);
     }
   }, []);
 
+
+  // Charger la session au démarrage.
   useEffect(() => {
     loadUser();
   }, [loadUser]);
 
-  // Connexion utilisateur.
+
+  // ==========================================================
+  // CONNEXION
+  // ==========================================================
+
   const login = async (credentials) => {
     setError(null);
 
     try {
-      // Demande des jetons JWT à Django.
-      const tokenResponse = await api.post("token/", credentials);
+      // Demander les jetons JWT à Django.
+      // La route token/ est publique : aucun ancien JWT
+      // ne doit être envoyé par le client Axios.
+      const tokenResponse = await api.post(
+        "token/",
+        credentials
+      );
 
       const tokens = tokenResponse.data;
 
@@ -101,20 +153,31 @@ export const AuthProvider = ({ children }) => {
         );
       }
 
-      // Enregistrer les jetons avant de demander le profil.
-      localStorage.setItem(STORAGE_KEYS.ACCESS, tokens.access);
-      localStorage.setItem(STORAGE_KEYS.REFRESH, tokens.refresh);
+      // Enregistrer les jetons avant de récupérer le profil.
+      localStorage.setItem(
+        STORAGE_KEYS.ACCESS,
+        tokens.access
+      );
+
+      localStorage.setItem(
+        STORAGE_KEYS.REFRESH,
+        tokens.refresh
+      );
 
       // Récupérer le profil de l'utilisateur connecté.
-      const profileResponse = await api.get("users/profile/");
+      const profileResponse = await api.get(
+        "users/profile/"
+      );
 
       const userData = profileResponse.data;
 
+      // Enregistrer les jetons et le profil.
       saveAuthStorage(tokens, userData);
 
       setUser(userData);
 
       return userData;
+
     } catch (err) {
       clearAuthStorage();
       setUser(null);
@@ -126,22 +189,39 @@ export const AuthProvider = ({ children }) => {
         "Impossible de se connecter.";
 
       setError(message);
+
       throw err;
     }
   };
 
-  // Déconnexion utilisateur.
+
+  // ==========================================================
+  // DÉCONNEXION
+  // ==========================================================
+
   const logout = async () => {
-    const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH);
+    const refreshToken = localStorage.getItem(
+      STORAGE_KEYS.REFRESH
+    );
 
     try {
       if (refreshToken) {
-        await api.post("users/logout/", {
-          refresh: refreshToken,
-        });
+        // Cette route est privée : le client central
+        // ajoute automatiquement l'Access Token.
+        await api.post(
+          "users/logout/",
+          {
+            refresh: refreshToken,
+          }
+        );
       }
+
     } catch (err) {
-      console.error("Erreur lors de la déconnexion :", err);
+      console.error(
+        "Erreur lors de la déconnexion :",
+        err.response?.data || err.message
+      );
+
     } finally {
       clearAuthStorage();
       setUser(null);
@@ -149,23 +229,28 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Actualiser manuellement les informations du profil.
+
+  // ==========================================================
+  // ACTUALISATION DU PROFIL
+  // ==========================================================
+
   const refreshUser = async () => {
-    try {
-      const response = await api.get("users/profile/");
+    const response = await api.get("users/profile/");
 
-      setUser(response.data);
+    setUser(response.data);
 
-      localStorage.setItem(
-        STORAGE_KEYS.USER,
-        JSON.stringify(response.data)
-      );
+    localStorage.setItem(
+      STORAGE_KEYS.USER,
+      JSON.stringify(response.data)
+    );
 
-      return response.data;
-    } catch (err) {
-      throw err;
-    }
+    return response.data;
   };
+
+
+  // ==========================================================
+  // VALEURS DU CONTEXTE
+  // ==========================================================
 
   const value = {
     user,
@@ -177,6 +262,7 @@ export const AuthProvider = ({ children }) => {
     refreshUser,
   };
 
+
   return (
     <AuthContext.Provider value={value}>
       {children}
@@ -184,7 +270,11 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// Hook pour utiliser l'authentification dans les composants.
+
+// ============================================================
+// HOOK D'AUTHENTIFICATION
+// ============================================================
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
 

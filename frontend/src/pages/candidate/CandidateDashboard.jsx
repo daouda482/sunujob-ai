@@ -29,7 +29,7 @@ import {
 
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
-import api from "../../services/api.js";
+import api from "../../api/axios";
 import "./CandidateDashboard.css";
 
 const extractList = (response) => {

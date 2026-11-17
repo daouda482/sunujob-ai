@@ -4448,3 +4448,369 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ================================================================
+   SUNUJOB AI — PIPELINE KANBAN DES CANDIDATURES
+   Extension du style existant, sans écraser les classes précédentes.
+   ================================================================ */
+
+.ra-view-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 16px 0;
+  border-top: 1px solid #edf1f6;
+}
+
+.ra-view-toolbar > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ra-view-toolbar > div:first-child strong {
+  color: #344c6b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ra-view-toolbar > div:first-child span {
+  color: #8996a8;
+  font-size: 10px;
+}
+
+.ra-view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #e4eaf2;
+  border-radius: 11px;
+  background: #f7f9fc;
+}
+
+.ra-view-switch button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  color: #718198;
+  font-size: 10px;
+  font-weight: 750;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ra-view-switch button:hover {
+  color: #245eae;
+  background: #edf3fc;
+}
+
+.ra-view-switch button.active {
+  color: #215bb1;
+  background: #fff;
+  box-shadow: 0 2px 7px rgba(25, 52, 91, 0.09);
+}
+
+.ra-kanban-help {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 15px;
+  padding: 13px 15px;
+  margin: 5px 0 16px;
+  color: #49698f;
+  border: 1px solid #dfeaff;
+  border-radius: 11px;
+  background: #f5f8ff;
+}
+
+.ra-kanban-help > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.ra-kanban-help > small {
+  color: #8292a8;
+  font-size: 9px;
+}
+
+.ra-kanban-board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(235px, 1fr));
+  align-items: start;
+  gap: 13px;
+  padding: 2px 2px 13px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd7e8 #f3f6fa;
+}
+
+.ra-kanban-column {
+  min-width: 0;
+  min-height: 250px;
+  padding: 11px;
+  border: 1px solid #e5ebf4;
+  border-radius: 15px;
+  background: #f7f9fc;
+  transition: border-color 0.18s ease, background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.ra-kanban-column.is-drag-over {
+  border-color: #6d9fe9;
+  background: #edf4ff;
+  box-shadow: inset 0 0 0 2px rgba(53, 112, 198, 0.08);
+}
+
+.ra-kanban-column-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 3px 12px;
+  border-bottom: 1px solid #e6ecf4;
+}
+
+.ra-kanban-column-header h3 {
+  margin: 0;
+  color: #29415f;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.ra-kanban-column-header p {
+  margin: 5px 0 0;
+  color: #8996a8;
+  font-size: 9px;
+}
+
+.ra-kanban-column-header > span,
+.ra-kanban-archive-heading > span {
+  display: inline-grid;
+  min-width: 25px;
+  height: 25px;
+  padding: 0 6px;
+  place-items: center;
+  color: #3268b6;
+  font-size: 10px;
+  font-weight: 850;
+  border: 1px solid #dce8fb;
+  border-radius: 8px;
+  background: #eaf2ff;
+}
+
+.ra-kanban-column-body {
+  display: flex;
+  min-height: 190px;
+  flex-direction: column;
+  gap: 9px;
+  padding-top: 10px;
+}
+
+.ra-kanban-column .ra-application-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 11px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #fff;
+  cursor: grab;
+}
+
+.ra-kanban-column .ra-application-card:active {
+  cursor: grabbing;
+}
+
+.ra-kanban-column .ra-application-card.is-dragging {
+  opacity: 0.42;
+  transform: scale(0.98);
+}
+
+.ra-kanban-column .ra-application-main {
+  width: 100%;
+  gap: 9px;
+}
+
+.ra-kanban-column .ra-candidate-avatar {
+  width: 37px;
+  height: 37px;
+  font-size: 12px;
+  border-radius: 11px;
+}
+
+.ra-kanban-column .ra-candidate-title-row {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ra-kanban-column .ra-candidate-title-row h3 {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.ra-kanban-column .ra-status {
+  min-height: 22px;
+  font-size: 8px;
+}
+
+.ra-kanban-column .ra-candidate-email {
+  margin-top: 7px;
+  font-size: 9px;
+}
+
+.ra-kanban-column .ra-application-meta {
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.ra-kanban-column .ra-application-meta > span {
+  font-size: 9px;
+}
+
+.ra-kanban-column .ra-application-actions {
+  width: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  padding-top: 9px;
+  border-top: 1px solid #edf1f6;
+}
+
+.ra-kanban-column .ra-details-button,
+.ra-kanban-column .ra-status-select-wrap,
+.ra-kanban-column .ra-status-select-wrap > select {
+  width: 100%;
+  max-width: none;
+}
+
+.ra-kanban-column .ra-details-button,
+.ra-kanban-column .ra-status-select-wrap {
+  min-height: 35px;
+}
+
+.ra-kanban-column .ra-status-select-wrap > select {
+  min-height: 33px;
+}
+
+.ra-kanban-empty {
+  display: grid;
+  min-height: 125px;
+  padding: 15px;
+  place-items: center;
+  color: #a0acbc;
+  font-size: 10px;
+  text-align: center;
+  border: 1px dashed #dce4ef;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.ra-kanban-archive {
+  padding: 19px;
+  margin-top: 20px;
+  border: 1px solid #e5ebf4;
+  border-radius: 15px;
+  background: #fbfcfe;
+}
+
+.ra-kanban-archive-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.ra-kanban-archive-heading h3 {
+  margin: 0;
+  color: #2b4260;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.ra-kanban-archive-heading p {
+  margin: 6px 0 0;
+  color: #8996a8;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.ra-kanban-archive-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.ra-kanban-archive-list .ra-application-card {
+  padding: 14px;
+}
+
+.ra-kanban-filter-note {
+  padding: 12px 14px;
+  margin-top: 13px;
+  color: #647b9a;
+  font-size: 10px;
+  line-height: 1.7;
+  border: 1px solid #e0eaff;
+  border-radius: 10px;
+  background: #f5f8ff;
+}
+
+@media (max-width: 1000px) {
+  .ra-kanban-board {
+    grid-template-columns: repeat(4, minmax(245px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .ra-view-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ra-view-switch {
+    width: 100%;
+  }
+
+  .ra-view-switch button {
+    flex: 1;
+  }
+
+  .ra-kanban-help {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ra-kanban-board {
+    grid-template-columns: repeat(4, minmax(255px, 1fr));
+    margin-right: -2px;
+  }
+
+  .ra-kanban-archive {
+    padding: 14px;
+  }
+
+  .ra-kanban-archive-list .ra-application-card {
+    align-items: stretch;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ra-view-switch button,
+  .ra-kanban-column {
+    transition: none;
+  }
+}

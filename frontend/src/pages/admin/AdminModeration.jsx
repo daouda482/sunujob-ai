@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useState } from "react";
 import api from "../../api/axios";
 import "./adminModeration.css";
@@ -27,12 +28,28 @@ const REASON_OPTIONS = [
   { value: "OTHER", label: "Autre motif" },
 ];
 
+/**
+ * Récupère le jeton JWT.
+ */
+function getAccessToken() {
+  return (
+    localStorage.getItem("access") ||
+    sessionStorage.getItem("access") ||
+    ""
+  );
+}
+
+/**
+ * Formate une date.
+ */
 function formatDate(value) {
   if (!value) return "—";
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
 
   return new Intl.DateTimeFormat("fr-FR", {
     day: "2-digit",
@@ -43,53 +60,93 @@ function formatDate(value) {
   }).format(date);
 }
 
+/**
+ * Retourne le libellé du statut.
+ */
 function statusLabel(status) {
   return (
-    STATUS_OPTIONS.find((item) => item.value === status)?.label || status
+    STATUS_OPTIONS.find((item) => item.value === status)?.label ||
+    status ||
+    "Inconnu"
   );
 }
 
+/**
+ * Formate les erreurs API.
+ */
 function getErrorMessage(error) {
   const data = error?.response?.data;
+  const status = error?.response?.status;
 
-  if (data?.detail) return data.detail;
+  if (status === 401) {
+    return "Votre session a expiré. Veuillez vous reconnecter.";
+  }
 
-  if (typeof data === "object" && data !== null) {
-    const firstValue = Object.values(data)[0];
+  if (status === 403) {
+    return "Accès refusé : cette fonctionnalité est réservée aux administrateurs. Vérifiez que votre compte possède bien le rôle ADMIN.";
+  }
 
-    if (Array.isArray(firstValue) && firstValue[0]) {
-      return String(firstValue[0]);
+  if (status === 404) {
+    return "L'adresse API de modération est introuvable. Vérifiez les routes Django.";
+  }
+
+  if (status >= 500) {
+    return "Une erreur interne est survenue sur le serveur Django. Consultez les logs du backend.";
+  }
+
+  if (typeof data?.detail === "string") {
+    return data.detail;
+  }
+
+  if (typeof data?.message === "string") {
+    return data.message;
+  }
+
+  if (data && typeof data === "object") {
+    for (const [field, value] of Object.entries(data)) {
+      if (Array.isArray(value) && value.length > 0) {
+        return `${field} : ${String(value[0])}`;
+      }
+
+      if (typeof value === "string") {
+        return `${field} : ${value}`;
+      }
     }
-
-    if (typeof firstValue === "string") {
-      return firstValue;
-    }
   }
 
-  if (error?.response?.status === 401) {
-    return "Votre session a expiré. Reconnectez-vous.";
+  if (error?.request && !error?.response) {
+    return "Impossible de contacter le serveur. Vérifiez que Django fonctionne et que l'URL de l'API est correcte.";
   }
 
-  if (error?.response?.status === 403) {
-    return "L’accès à la modération est réservé aux administrateurs.";
-  }
-
-  return "Une erreur est survenue. Vérifiez la connexion à l’API.";
+  return "Une erreur est survenue lors de la communication avec l'API.";
 }
 
+/**
+ * Badge du statut.
+ */
 function StatusBadge({ value }) {
   return (
-    <span className={`moderation-status moderation-status-${value?.toLowerCase()}`}>
+    <span
+      className={`moderation-status moderation-status-${(
+        value || ""
+      ).toLowerCase()}`}
+    >
       <span className="moderation-status-dot" />
       {statusLabel(value)}
     </span>
   );
 }
 
+/**
+ * Carte statistique.
+ */
 function SummaryCard({ icon, title, value, detail, color }) {
   return (
     <article className="moderation-summary-card">
-      <div className={`moderation-summary-icon ${color}`}>{icon}</div>
+      <div className={`moderation-summary-icon ${color}`}>
+        {icon}
+      </div>
+
       <div className="moderation-summary-content">
         <span>{title}</span>
         <strong>{value ?? "—"}</strong>
@@ -110,7 +167,9 @@ export default function AdminModeration() {
   });
 
   const [appliedFilters, setAppliedFilters] = useState({});
+
   const [reports, setReports] = useState([]);
+
   const [summary, setSummary] = useState({
     total: 0,
     open: 0,
@@ -122,15 +181,39 @@ export default function AdminModeration() {
   const [selectedReport, setSelectedReport] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState("IN_REVIEW");
   const [adminNotes, setAdminNotes] = useState("");
+
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
   const [refreshKey, setRefreshKey] = useState(0);
 
+  /**
+   * Chargement des signalements.
+   */
   const loadReports = useCallback(async () => {
+    const accessToken = getAccessToken();
+
+    if (!accessToken) {
+      setReports([]);
+      setTotal(0);
+      setSummary({
+        total: 0,
+        open: 0,
+        in_review: 0,
+        resolved: 0,
+        dismissed: 0,
+      });
+      setError("Vous devez vous connecter pour accéder à la modération.");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -141,31 +224,64 @@ export default function AdminModeration() {
         ...appliedFilters,
       };
 
+      // Supprimer les paramètres vides.
       Object.keys(params).forEach((key) => {
         if (params[key] === "" || params[key] == null) {
           delete params[key];
         }
       });
 
-      const response = await api.get("admin/moderation/reports/", {
+      // Endpoint réservé à la consultation administrative.
+      const response = await api.get("moderation/reports/", {
         params,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
 
       const data = response.data || {};
 
-      setReports(Array.isArray(data.results) ? data.results : []);
-      setTotal(Number(data.count) || 0);
+      // Gestion de la pagination DRF.
+      const reportList = Array.isArray(data.results)
+        ? data.results
+        : Array.isArray(data)
+          ? data
+          : [];
+
+      setReports(reportList);
+
+      setTotal(
+        Number(data.count) ||
+          (Array.isArray(data) ? data.length : 0)
+      );
+
+      // Récupération des statistiques.
+      const apiSummary = data.summary || {};
 
       setSummary({
-        total: Number(data.summary?.total) || 0,
-        open: Number(data.summary?.open) || 0,
-        in_review: Number(data.summary?.in_review) || 0,
-        resolved: Number(data.summary?.resolved) || 0,
-        dismissed: Number(data.summary?.dismissed) || 0,
+        total: Number(apiSummary.total) || 0,
+        open: Number(apiSummary.open) || 0,
+        in_review: Number(apiSummary.in_review) || 0,
+        resolved: Number(apiSummary.resolved) || 0,
+        dismissed: Number(apiSummary.dismissed) || 0,
       });
     } catch (err) {
+      console.error(
+        "Erreur chargement des signalements :",
+        err?.response?.data || err
+      );
+
       setReports([]);
       setTotal(0);
+
+      setSummary({
+        total: 0,
+        open: 0,
+        in_review: 0,
+        resolved: 0,
+        dismissed: 0,
+      });
+
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
@@ -176,6 +292,9 @@ export default function AdminModeration() {
     loadReports();
   }, [loadReports]);
 
+  /**
+   * Modification des filtres.
+   */
   function handleFilterChange(event) {
     const { name, value } = event.target;
 
@@ -185,6 +304,9 @@ export default function AdminModeration() {
     }));
   }
 
+  /**
+   * Application des filtres.
+   */
   function applyFilters(event) {
     event.preventDefault();
 
@@ -193,7 +315,9 @@ export default function AdminModeration() {
       filters.end_date &&
       filters.start_date > filters.end_date
     ) {
-      setError("La date de début doit précéder la date de fin.");
+      setError(
+        "La date de début doit précéder la date de fin."
+      );
       return;
     }
 
@@ -203,6 +327,9 @@ export default function AdminModeration() {
     setAppliedFilters({ ...filters });
   }
 
+  /**
+   * Réinitialisation des filtres.
+   */
   function resetFilters() {
     const empty = {
       search: "",
@@ -220,53 +347,113 @@ export default function AdminModeration() {
     setSuccess("");
   }
 
+  /**
+   * Ouverture d'un dossier.
+   */
   function openReport(report) {
     setSelectedReport(report);
+
     setSelectedStatus(
-      report.status === "OPEN" ? "IN_REVIEW" : report.status
+      report.status === "OPEN"
+        ? "IN_REVIEW"
+        : report.status
     );
+
     setAdminNotes(report.admin_notes || "");
+
     setError("");
     setSuccess("");
   }
 
+  /**
+   * Fermeture du dossier.
+   */
   function closeReport() {
     if (saving) return;
+
     setSelectedReport(null);
   }
 
+  /**
+   * Enregistrement de la décision administrative.
+   */
   async function saveDecision(event) {
     event.preventDefault();
 
-    if (!selectedReport || saving) return;
+    if (!selectedReport || saving) {
+      return;
+    }
+
+    const accessToken = getAccessToken();
+
+    if (!accessToken) {
+      setError("Votre session a expiré. Reconnectez-vous.");
+      return;
+    }
+
+    if (
+      !STATUS_OPTIONS.some(
+        (item) => item.value === selectedStatus
+      )
+    ) {
+      setError("Veuillez sélectionner un statut valide.");
+      return;
+    }
+
+    if (adminNotes.length > 10000) {
+      setError(
+        "La note administrative ne peut pas dépasser 10 000 caractères."
+      );
+      return;
+    }
 
     setSaving(true);
     setError("");
     setSuccess("");
 
     try {
+      // Endpoint réservé à la modification administrative.
       await api.patch(
-        `admin/moderation/reports/${selectedReport.id}/status/`,
+        `moderation/reports/${selectedReport.id}/status/`,
         {
           status: selectedStatus,
-          admin_notes: adminNotes,
+          admin_notes: adminNotes.trim(),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
         }
       );
 
-      setSuccess(`Le signalement #${selectedReport.id} a été mis à jour.`);
+      setSuccess(
+        `Le signalement #${selectedReport.id} a été mis à jour avec succès.`
+      );
+
       setSelectedReport(null);
+
+      // Rechargement des données et statistiques.
       setRefreshKey((current) => current + 1);
     } catch (err) {
+      console.error(
+        "Erreur modification du signalement :",
+        err?.response?.data || err
+      );
+
       setError(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
   }
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(total / PAGE_SIZE)
+  );
 
   return (
     <main className="moderation-page">
+      {/* EN-TÊTE */}
       <section className="moderation-hero">
         <div className="moderation-hero-copy">
           <div className="moderation-eyebrow">
@@ -277,9 +464,9 @@ export default function AdminModeration() {
           <h1>Centre de modération</h1>
 
           <p>
-            Examinez les signalements, documentez vos décisions et
-            contribuez à maintenir un environnement de recrutement fiable
-            sur SunuJob AI.
+            Examinez les signalements, documentez vos décisions
+            et contribuez à maintenir un environnement de
+            recrutement fiable sur SunuJob AI.
           </p>
 
           <div className="moderation-hero-tags">
@@ -289,35 +476,55 @@ export default function AdminModeration() {
           </div>
         </div>
 
-        <div className="moderation-hero-illustration" aria-hidden="true">
+        <div
+          className="moderation-hero-illustration"
+          aria-hidden="true"
+        >
           <div className="moderation-shield">
             <span>✓</span>
           </div>
+
           <div className="moderation-orbit moderation-orbit-one" />
           <div className="moderation-orbit moderation-orbit-two" />
         </div>
       </section>
 
+      {/* MESSAGES */}
       {error && (
-        <div className="moderation-alert moderation-alert-error" role="alert">
+        <div
+          className="moderation-alert moderation-alert-error"
+          role="alert"
+        >
           <span>!</span>
           <p>{error}</p>
-          <button type="button" onClick={() => setError("")}>
+
+          <button
+            type="button"
+            onClick={() => setError("")}
+          >
             Fermer
           </button>
         </div>
       )}
 
       {success && (
-        <div className="moderation-alert moderation-alert-success" role="status">
+        <div
+          className="moderation-alert moderation-alert-success"
+          role="status"
+        >
           <span>✓</span>
           <p>{success}</p>
-          <button type="button" onClick={() => setSuccess("")}>
+
+          <button
+            type="button"
+            onClick={() => setSuccess("")}
+          >
             Fermer
           </button>
         </div>
       )}
 
+      {/* STATISTIQUES */}
       <section className="moderation-summary-grid">
         <SummaryCard
           icon="▤"
@@ -352,31 +559,45 @@ export default function AdminModeration() {
         />
       </section>
 
+      {/* LISTE DES SIGNALEMENTS */}
       <section className="moderation-panel">
         <div className="moderation-panel-heading">
           <div>
             <span className="moderation-section-kicker">
               SUIVI DES DOSSIERS
             </span>
+
             <h2>Signalements reçus</h2>
-            <p>Recherchez un dossier et consultez les éléments signalés.</p>
+
+            <p>
+              Recherchez un dossier et consultez les éléments
+              signalés.
+            </p>
           </div>
 
           <button
             className="moderation-refresh-btn"
             type="button"
-            onClick={() => setRefreshKey((current) => current + 1)}
+            onClick={() =>
+              setRefreshKey((current) => current + 1)
+            }
             disabled={loading}
           >
             ↻ Actualiser
           </button>
         </div>
 
-        <form className="moderation-filters" onSubmit={applyFilters}>
+        {/* FILTRES */}
+        <form
+          className="moderation-filters"
+          onSubmit={applyFilters}
+        >
           <label className="moderation-search-field">
             <span>Recherche</span>
+
             <div className="moderation-search-wrap">
               <span aria-hidden="true">⌕</span>
+
               <input
                 type="search"
                 name="search"
@@ -389,14 +610,19 @@ export default function AdminModeration() {
 
           <label>
             <span>Statut</span>
+
             <select
               name="status"
               value={filters.status}
               onChange={handleFilterChange}
             >
               <option value="">Tous les statuts</option>
+
               {STATUS_OPTIONS.map((item) => (
-                <option key={item.value} value={item.value}>
+                <option
+                  key={item.value}
+                  value={item.value}
+                >
                   {item.label}
                 </option>
               ))}
@@ -405,14 +631,19 @@ export default function AdminModeration() {
 
           <label>
             <span>Type de cible</span>
+
             <select
               name="target_type"
               value={filters.target_type}
               onChange={handleFilterChange}
             >
               <option value="">Tous les types</option>
+
               {TARGET_OPTIONS.map((item) => (
-                <option key={item.value} value={item.value}>
+                <option
+                  key={item.value}
+                  value={item.value}
+                >
                   {item.label}
                 </option>
               ))}
@@ -421,14 +652,19 @@ export default function AdminModeration() {
 
           <label>
             <span>Motif</span>
+
             <select
               name="reason"
               value={filters.reason}
               onChange={handleFilterChange}
             >
               <option value="">Tous les motifs</option>
+
               {REASON_OPTIONS.map((item) => (
-                <option key={item.value} value={item.value}>
+                <option
+                  key={item.value}
+                  value={item.value}
+                >
                   {item.label}
                 </option>
               ))}
@@ -437,6 +673,7 @@ export default function AdminModeration() {
 
           <label>
             <span>Date de début</span>
+
             <input
               type="date"
               name="start_date"
@@ -447,6 +684,7 @@ export default function AdminModeration() {
 
           <label>
             <span>Date de fin</span>
+
             <input
               type="date"
               name="end_date"
@@ -456,7 +694,10 @@ export default function AdminModeration() {
           </label>
 
           <div className="moderation-filter-actions">
-            <button className="moderation-primary-btn" type="submit">
+            <button
+              className="moderation-primary-btn"
+              type="submit"
+            >
               Appliquer les filtres
             </button>
 
@@ -470,17 +711,20 @@ export default function AdminModeration() {
           </div>
         </form>
 
+        {/* BARRE DE RÉSULTATS */}
         <div className="moderation-table-toolbar">
           <span>
             {loading
               ? "Chargement des dossiers…"
               : `${total.toLocaleString("fr-FR")} résultat(s)`}
           </span>
+
           <span>
             Page {page} sur {totalPages}
           </span>
         </div>
 
+        {/* TABLEAU */}
         <div className="moderation-table-scroll">
           <table className="moderation-table">
             <thead>
@@ -497,19 +741,31 @@ export default function AdminModeration() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="moderation-state-cell">
+                  <td
+                    colSpan="6"
+                    className="moderation-state-cell"
+                  >
                     <div className="moderation-spinner" />
                     Chargement des signalements…
                   </td>
                 </tr>
               ) : reports.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="moderation-state-cell">
-                    <div className="moderation-empty-icon">✓</div>
-                    <strong>Aucun signalement trouvé</strong>
+                  <td
+                    colSpan="6"
+                    className="moderation-state-cell"
+                  >
+                    <div className="moderation-empty-icon">
+                      ✓
+                    </div>
+
+                    <strong>
+                      Aucun signalement trouvé
+                    </strong>
+
                     <p>
-                      Les dossiers apparaîtront ici lorsqu’ils auront été
-                      transmis par l’API de signalement.
+                      Les dossiers apparaîtront ici lorsqu’ils
+                      auront été transmis par l’API de signalement.
                     </p>
                   </td>
                 </tr>
@@ -519,22 +775,30 @@ export default function AdminModeration() {
                     <td>
                       <div className="moderation-report-id">
                         <span>#{report.id}</span>
-                        <small>{report.reporter_label}</small>
+                        <small>
+                          {report.reporter_label || "Utilisateur"}
+                        </small>
                       </div>
                     </td>
 
                     <td>
                       <div className="moderation-target">
-                        <strong>{report.target_label || "Cible non renseignée"}</strong>
+                        <strong>
+                          {report.target_label ||
+                            "Cible non renseignée"}
+                        </strong>
+
                         <small>
-                          {report.target_type_label} · ID {report.target_id}
+                          {report.target_type_label ||
+                            report.target_type}{" "}
+                          · ID {report.target_id}
                         </small>
                       </div>
                     </td>
 
                     <td>
                       <span className="moderation-reason">
-                        {report.reason_label}
+                        {report.reason_label || report.reason}
                       </span>
                     </td>
 
@@ -562,11 +826,14 @@ export default function AdminModeration() {
           </table>
         </div>
 
+        {/* PAGINATION */}
         <div className="moderation-pagination">
           <span>
             {total === 0
               ? "Aucun résultat"
-              : `Affichage de ${(page - 1) * PAGE_SIZE + 1} à ${Math.min(
+              : `Affichage de ${
+                  (page - 1) * PAGE_SIZE + 1
+                } à ${Math.min(
                   page * PAGE_SIZE,
                   total
                 )} sur ${total}`}
@@ -576,17 +843,23 @@ export default function AdminModeration() {
             <button
               type="button"
               disabled={loading || page <= 1}
-              onClick={() => setPage((current) => current - 1)}
+              onClick={() =>
+                setPage((current) => current - 1)
+              }
             >
               ← Précédent
             </button>
 
-            <span className="moderation-current-page">{page}</span>
+            <span className="moderation-current-page">
+              {page}
+            </span>
 
             <button
               type="button"
               disabled={loading || page >= totalPages}
-              onClick={() => setPage((current) => current + 1)}
+              onClick={() =>
+                setPage((current) => current + 1)
+              }
             >
               Suivant →
             </button>
@@ -594,11 +867,14 @@ export default function AdminModeration() {
         </div>
       </section>
 
+      {/* FENÊTRE D'EXAMEN */}
       {selectedReport && (
         <div
           className="moderation-modal-backdrop"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) closeReport();
+            if (event.target === event.currentTarget) {
+              closeReport();
+            }
           }}
         >
           <section
@@ -612,7 +888,10 @@ export default function AdminModeration() {
                 <span className="moderation-section-kicker">
                   DOSSIER #{selectedReport.id}
                 </span>
-                <h2 id="moderation-modal-title">Examen du signalement</h2>
+
+                <h2 id="moderation-modal-title">
+                  Examen du signalement
+                </h2>
               </div>
 
               <button
@@ -629,53 +908,85 @@ export default function AdminModeration() {
             <div className="moderation-modal-body">
               <div className="moderation-detail-highlight">
                 <span>Élément concerné</span>
+
                 <strong>
-                  {selectedReport.target_label || "Cible non renseignée"}
+                  {selectedReport.target_label ||
+                    "Cible non renseignée"}
                 </strong>
+
                 <small>
-                  {selectedReport.target_type_label} · Identifiant{" "}
-                  {selectedReport.target_id}
+                  {selectedReport.target_type_label ||
+                    selectedReport.target_type}{" "}
+                  · Identifiant {selectedReport.target_id}
                 </small>
               </div>
 
               <div className="moderation-detail-grid">
                 <div>
                   <span>Signalé par</span>
-                  <strong>{selectedReport.reporter_label}</strong>
-                  <small>{selectedReport.reporter_email || "Email indisponible"}</small>
+
+                  <strong>
+                    {selectedReport.reporter_label ||
+                      "Utilisateur"}
+                  </strong>
+
+                  <small>
+                    {selectedReport.reporter_email ||
+                      "Email indisponible"}
+                  </small>
                 </div>
 
                 <div>
                   <span>Motif déclaré</span>
-                  <strong>{selectedReport.reason_label}</strong>
-                  <small>{formatDate(selectedReport.created_at)}</small>
+
+                  <strong>
+                    {selectedReport.reason_label ||
+                      selectedReport.reason}
+                  </strong>
+
+                  <small>
+                    {formatDate(selectedReport.created_at)}
+                  </small>
                 </div>
               </div>
 
               <div className="moderation-description-block">
                 <span>Description du signalement</span>
-                <p>{selectedReport.description}</p>
+                <p>
+                  {selectedReport.description ||
+                    "Aucune description fournie."}
+                </p>
               </div>
 
               {selectedReport.reviewed_at && (
                 <p className="moderation-last-review">
-                  Dernier traitement : {formatDate(selectedReport.reviewed_at)}
+                  Dernier traitement :{" "}
+                  {formatDate(selectedReport.reviewed_at)}
                   {selectedReport.reviewer_label
                     ? ` · ${selectedReport.reviewer_label}`
                     : ""}
                 </p>
               )}
 
-              <form className="moderation-decision-form" onSubmit={saveDecision}>
+              <form
+                className="moderation-decision-form"
+                onSubmit={saveDecision}
+              >
                 <label>
                   Statut du dossier
+
                   <select
                     value={selectedStatus}
-                    onChange={(event) => setSelectedStatus(event.target.value)}
+                    onChange={(event) =>
+                      setSelectedStatus(event.target.value)
+                    }
                     disabled={saving}
                   >
                     {STATUS_OPTIONS.map((item) => (
-                      <option key={item.value} value={item.value}>
+                      <option
+                        key={item.value}
+                        value={item.value}
+                      >
                         {item.label}
                       </option>
                     ))}
@@ -684,20 +995,27 @@ export default function AdminModeration() {
 
                 <label>
                   Note interne de modération
+
                   <textarea
                     value={adminNotes}
-                    onChange={(event) => setAdminNotes(event.target.value)}
+                    onChange={(event) =>
+                      setAdminNotes(event.target.value)
+                    }
                     maxLength={10000}
                     rows={5}
                     placeholder="Consignez les vérifications réalisées, la justification de votre décision et les suites à donner…"
                     disabled={saving}
                   />
-                  <small>{adminNotes.length}/10 000 caractères</small>
+
+                  <small>
+                    {adminNotes.length}/10 000 caractères
+                  </small>
                 </label>
 
                 <div className="moderation-decision-note">
-                  Cette note est destinée à l’équipe administrative et n’est
-                  pas affichée publiquement.
+                  Cette note est destinée à l’équipe
+                  administrative et n’est pas affichée
+                  publiquement.
                 </div>
 
                 <div className="moderation-modal-actions">
@@ -715,7 +1033,9 @@ export default function AdminModeration() {
                     className="moderation-primary-btn"
                     disabled={saving}
                   >
-                    {saving ? "Enregistrement…" : "Enregistrer la décision"}
+                    {saving
+                      ? "Enregistrement…"
+                      : "Enregistrer la décision"}
                   </button>
                 </div>
               </form>

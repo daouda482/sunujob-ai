@@ -1,7 +1,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import api from "../../services/api.js";
+import api from "../../api/axios";
 import "./Applications.css";
 
 /* =========================================================
@@ -302,8 +302,6 @@ export default function Applications() {
 
   return (
     <main className="app-page">
-      {/* BARRE DE NAVIGATION */}
-
       <header className="app-topbar">
         <Link to="/" className="app-brand" aria-label="SunuJob AI - Accueil">
           <span className="app-brand-icon">S</span>
@@ -329,8 +327,6 @@ export default function Applications() {
       </header>
 
       <div className="app-container">
-        {/* EN-TÊTE */}
-
         <section className="app-hero">
           <div className="app-hero-text">
             <span className="app-eyebrow">
@@ -351,8 +347,6 @@ export default function Applications() {
             <i>✓</i>
           </div>
         </section>
-
-        {/* STATISTIQUES */}
 
         <section
           className="app-stat-grid"
@@ -403,8 +397,6 @@ export default function Applications() {
           </article>
         </section>
 
-        {/* HISTORIQUE */}
-
         <section className="app-list-panel">
           <div className="app-list-heading">
             <div>
@@ -421,8 +413,6 @@ export default function Applications() {
               Nouvelle candidature
             </Link>
           </div>
-
-          {/* RECHERCHE ET FILTRES */}
 
           <div className="app-filters">
             <label className="app-search">
@@ -454,8 +444,6 @@ export default function Applications() {
             </select>
           </div>
 
-          {/* ERREUR */}
-
           {error && (
             <div className="app-error" role="alert">
               <strong>Chargement impossible</strong>
@@ -468,16 +456,12 @@ export default function Applications() {
             </div>
           )}
 
-          {/* CHARGEMENT */}
-
           {loading ? (
             <div className="app-loading" role="status">
               <div className="app-spinner" />
               Chargement de vos candidatures...
             </div>
           ) : !error && filteredApplications.length === 0 ? (
-            /* AUCUN RÉSULTAT */
-
             <div className="app-empty">
               <div className="app-empty-icon" aria-hidden="true">
                 {applications.length === 0 ? "▤" : "⌕"}
@@ -513,8 +497,6 @@ export default function Applications() {
               )}
             </div>
           ) : (
-            /* TABLEAU DES CANDIDATURES */
-
             !error && (
               <div className="app-table-wrapper">
                 <table className="app-table">
@@ -597,8 +579,6 @@ export default function Applications() {
           )}
         </section>
 
-        {/* PIED DE PAGE */}
-
         <footer className="app-footer">
           <span>
             © {new Date().getFullYear()} SunuJob AI. Tous droits réservés.
@@ -607,8 +587,6 @@ export default function Applications() {
           <span>Conçu avec ♥ au Sénégal 🇸🇳</span>
         </footer>
       </div>
-
-      {/* FENÊTRE DES DÉTAILS */}
 
       {selectedApplication && (
         <div

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "../api/axios";
@@ -34,8 +35,42 @@ const REASONS = [
   },
 ];
 
+/**
+ * Récupère le jeton JWT depuis le stockage disponible.
+ */
+function getAccessToken() {
+  return (
+    localStorage.getItem("access") ||
+    sessionStorage.getItem("access") ||
+    ""
+  );
+}
+
+/**
+ * Formate les erreurs renvoyées par Django REST Framework.
+ */
 function getErrorMessage(error) {
   const data = error?.response?.data;
+  const status = error?.response?.status;
+
+  if (status === 401) {
+    return "Votre session a expiré. Veuillez vous reconnecter.";
+  }
+
+  if (status === 403) {
+    return (
+      data?.detail ||
+      "Vous n’êtes pas autorisé à envoyer ce signalement."
+    );
+  }
+
+  if (status === 404) {
+    return "Le service de signalement est introuvable. Vérifiez la configuration de l’API.";
+  }
+
+  if (status >= 500) {
+    return "Une erreur est survenue sur le serveur. Veuillez réessayer plus tard.";
+  }
 
   if (typeof data?.detail === "string") {
     return data.detail;
@@ -46,9 +81,9 @@ function getErrorMessage(error) {
   }
 
   if (data && typeof data === "object") {
-    for (const value of Object.values(data)) {
+    for (const [field, value] of Object.entries(data)) {
       if (Array.isArray(value) && value.length > 0) {
-        return String(value[0]);
+        return `${field} : ${String(value[0])}`;
       }
 
       if (typeof value === "string") {
@@ -57,15 +92,11 @@ function getErrorMessage(error) {
     }
   }
 
-  if (error?.response?.status === 401) {
-    return "Votre session a expiré. Veuillez vous reconnecter.";
+  if (error?.request && !error?.response) {
+    return "Impossible de contacter le serveur. Vérifiez que le backend Django fonctionne.";
   }
 
-  if (error?.response?.status === 403) {
-    return "Vous n’êtes pas autorisé à envoyer ce signalement.";
-  }
-
-  return "Impossible d’envoyer le signalement. Réessayez.";
+  return "Impossible d’envoyer le signalement. Veuillez réessayer.";
 }
 
 export default function ReportButton({
@@ -86,25 +117,42 @@ export default function ReportButton({
   const [submitted, setSubmitted] = useState(false);
   const [requiresLogin, setRequiresLogin] = useState(false);
 
+  const numericTargetId = Number(targetId);
+
   const isValidTarget =
     ["JOB", "COMPANY"].includes(targetType) &&
-    Number.isInteger(Number(targetId)) &&
-    Number(targetId) > 0;
+    Number.isInteger(numericTargetId) &&
+    numericTargetId > 0;
 
+  /**
+   * Ouvre la fenêtre de signalement.
+   */
   function openModal() {
+    const token = getAccessToken();
+
     setError("");
     setSubmitted(false);
-    setRequiresLogin(!localStorage.getItem("access"));
+    setReason("");
+    setDescription("");
+    setRequiresLogin(!token);
     setIsOpen(true);
   }
 
+  /**
+   * Ferme la fenêtre.
+   */
   function closeModal() {
-    if (submitting) return;
+    if (submitting) {
+      return;
+    }
 
     setIsOpen(false);
     setError("");
   }
 
+  /**
+   * Redirige vers la page de connexion.
+   */
   function handleLogin() {
     navigate("/login", {
       state: {
@@ -113,53 +161,88 @@ export default function ReportButton({
     });
   }
 
+  /**
+   * Envoie le signalement au backend.
+   */
   async function handleSubmit(event) {
     event.preventDefault();
+
     setError("");
 
+    // Vérification de la cible.
     if (!isValidTarget) {
       setError("L’élément à signaler est introuvable.");
       return;
     }
 
-    if (!localStorage.getItem("access")) {
+    // Vérification du jeton JWT.
+    const accessToken = getAccessToken();
+
+    if (!accessToken) {
       setRequiresLogin(true);
       setError("Connectez-vous pour envoyer un signalement.");
       return;
     }
 
-    if (!reason) {
-      setError("Veuillez sélectionner un motif.");
+    // Vérification du motif.
+    if (!REASONS.some((item) => item.value === reason)) {
+      setError("Veuillez sélectionner un motif valide.");
       return;
     }
 
+    // Vérification de la description.
     const cleanedDescription = description.trim();
 
     if (cleanedDescription.length < 10) {
-      setError("Veuillez expliquer le problème en au moins 10 caractères.");
+      setError(
+        "Veuillez expliquer le problème en au moins 10 caractères."
+      );
       return;
     }
 
     if (cleanedDescription.length > 5000) {
-      setError("La description ne peut pas dépasser 5 000 caractères.");
+      setError(
+        "La description ne peut pas dépasser 5 000 caractères."
+      );
       return;
     }
 
     setSubmitting(true);
 
     try {
-      await api.post("moderation/reports/", {
+      const payload = {
         target_type: targetType,
-        target_id: Number(targetId),
+        target_id: numericTargetId,
         reason,
         description: cleanedDescription,
-      });
+      };
 
+      // IMPORTANT :
+      // L'endpoint /create/ permet à un utilisateur connecté
+      // de soumettre un signalement.
+      // L'endpoint sans /create/ est réservé à la modération admin.
+      await api.post(
+        "moderation/reports/create/",
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      // Confirmation de l'envoi.
       setSubmitted(true);
       setReason("");
       setDescription("");
       setError("");
+      setRequiresLogin(false);
     } catch (err) {
+      console.error(
+        "Erreur lors de l'envoi du signalement :",
+        err?.response?.data || err
+      );
+
       setError(getErrorMessage(err));
 
       if (err?.response?.status === 401) {
@@ -178,13 +261,16 @@ export default function ReportButton({
     <>
       <button
         type="button"
-        className={`report-trigger ${compact ? "report-trigger-compact" : ""}`}
+        className={`report-trigger ${
+          compact ? "report-trigger-compact" : ""
+        }`}
         onClick={openModal}
         aria-label={`${buttonLabel} ${targetLabel}`.trim()}
       >
         <span className="report-trigger-icon" aria-hidden="true">
           ⚑
         </span>
+
         <span>{buttonLabel}</span>
       </button>
 
@@ -204,7 +290,10 @@ export default function ReportButton({
             aria-labelledby="report-modal-title"
           >
             <header className="report-modal-header">
-              <div className="report-modal-heading-icon" aria-hidden="true">
+              <div
+                className="report-modal-heading-icon"
+                aria-hidden="true"
+              >
                 ⚑
               </div>
 
@@ -225,12 +314,8 @@ export default function ReportButton({
                   {targetType === "JOB"
                     ? "Offre d’emploi"
                     : "Entreprise"}
+
                   {targetLabel ? ` · ${targetLabel}` : ""}
-                  {/* <ReportButton
-                    targetType="JOB"
-                    targetId={job.id}
-                    targetLabel={job.title}
-                /> */}
                 </p>
               </div>
 
@@ -247,21 +332,25 @@ export default function ReportButton({
 
             {submitted ? (
               <div className="report-success-content">
-                <div className="report-success-icon">✓</div>
+                <div className="report-success-icon">
+                  ✓
+                </div>
 
                 <h3>Merci pour votre vigilance !</h3>
 
                 <p>
-                  Votre signalement a bien été transmis à l’équipe de
-                  modération de SunuJob AI. Il sera examiné par un
-                  administrateur.
+                  Votre signalement a bien été transmis à
+                  l’équipe de modération de SunuJob AI.
+                  Il sera examiné par un administrateur.
                 </p>
 
                 <div className="report-privacy-note">
                   <span aria-hidden="true">🔒</span>
+
                   <span>
-                    Votre signalement est transmis à l’équipe administrative
-                    et n’est pas publié sur la page concernée.
+                    Votre signalement est transmis à l’équipe
+                    administrative et n’est pas publié sur la
+                    page concernée.
                   </span>
                 </div>
 
@@ -275,14 +364,16 @@ export default function ReportButton({
               </div>
             ) : requiresLogin ? (
               <div className="report-login-content">
-                <div className="report-login-icon">♙</div>
+                <div className="report-login-icon">
+                  ♙
+                </div>
 
                 <h3>Connectez-vous pour continuer</h3>
 
                 <p>
-                  Pour éviter les abus et permettre le suivi des dossiers,
-                  seuls les utilisateurs connectés peuvent transmettre un
-                  signalement.
+                  Pour éviter les abus et permettre le suivi
+                  des dossiers, seuls les utilisateurs
+                  connectés peuvent transmettre un signalement.
                 </p>
 
                 {error && (
@@ -313,8 +404,9 @@ export default function ReportButton({
                 onSubmit={handleSubmit}
               >
                 <div className="report-form-intro">
-                  Aidez-nous à maintenir un environnement de recrutement
-                  fiable. Décrivez précisément le problème observé.
+                  Aidez-nous à maintenir un environnement de
+                  recrutement fiable. Décrivez précisément le
+                  problème observé.
                 </div>
 
                 <label className="report-field">
@@ -324,14 +416,21 @@ export default function ReportButton({
 
                   <select
                     value={reason}
-                    onChange={(event) => setReason(event.target.value)}
+                    onChange={(event) =>
+                      setReason(event.target.value)
+                    }
                     required
                     disabled={submitting}
                   >
-                    <option value="">Sélectionnez un motif</option>
+                    <option value="">
+                      Sélectionnez un motif
+                    </option>
 
                     {REASONS.map((item) => (
-                      <option key={item.value} value={item.value}>
+                      <option
+                        key={item.value}
+                        value={item.value}
+                      >
                         {item.label}
                       </option>
                     ))}
@@ -357,17 +456,19 @@ export default function ReportButton({
                   />
 
                   <small>
-                    {description.length}/5 000 caractères. Minimum :
-                    10 caractères.
+                    {description.length}/5 000 caractères.
+                    Minimum : 10 caractères.
                   </small>
                 </label>
 
                 <div className="report-privacy-note">
                   <span aria-hidden="true">🔒</span>
+
                   <span>
-                    Les informations envoyées sont destinées à l’équipe
-                    de modération. Évitez d’inclure des données personnelles
-                    inutiles dans votre description.
+                    Les informations envoyées sont destinées
+                    à l’équipe de modération. Évitez d’inclure
+                    des données personnelles inutiles dans
+                    votre description.
                   </span>
                 </div>
 

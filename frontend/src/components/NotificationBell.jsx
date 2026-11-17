@@ -4,6 +4,13 @@ import { Link, useNavigate } from "react-router-dom";
 import { notificationService } from "../services/notificationService";
 import "../styles/notifications.css";
 
+function getAccessToken() {
+  return (
+    localStorage.getItem("access") ||
+    sessionStorage.getItem("access")
+  );
+}
+
 function formatNotificationDate(date) {
   if (!date) return "";
 
@@ -30,8 +37,21 @@ function getNotificationIcon(type) {
   return icons[type] || "✉️";
 }
 
+function extractNotifications(data) {
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (Array.isArray(data?.results)) {
+    return data.results;
+  }
+
+  return [];
+}
+
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
@@ -43,18 +63,14 @@ export default function NotificationBell() {
 
   const navigate = useNavigate();
 
-  const unreadCount = notifications.filter(
-    (notification) => !notification.is_read
-  ).length;
-
   const loadNotifications = useCallback(async (silent = false) => {
-    if (!localStorage.getItem("access")) {
+    if (!getAccessToken()) {
       setNotifications([]);
+      setUnreadCount(0);
       setError("");
       return;
     }
 
-    // Éviter plusieurs requêtes simultanées
     if (loadingRef.current) return;
 
     loadingRef.current = true;
@@ -65,18 +81,42 @@ export default function NotificationBell() {
     }
 
     try {
-      const data = await notificationService.getAll();
+      const [notificationsResult, countResult] =
+        await Promise.allSettled([
+          notificationService.getAll(),
+          notificationService.getUnreadCount(),
+        ]);
 
-      const list = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.results)
-          ? data.results
-          : [];
+      if (notificationsResult.status === "fulfilled") {
+        const list = extractNotifications(
+          notificationsResult.value
+        );
 
-      setNotifications(list);
+        setNotifications(list);
 
-      if (!silent) setError("");
+        // Valeur de secours si le compteur API échoue.
+        if (countResult.status === "rejected") {
+          setUnreadCount(
+            list.filter((item) => !item.is_read).length
+          );
+        }
+      } else {
+        throw notificationsResult.reason;
+      }
+
+      if (countResult.status === "fulfilled") {
+        setUnreadCount(countResult.value);
+      }
+
+      if (!silent) {
+        setError("");
+      }
     } catch (err) {
+      console.error(
+        "Erreur de chargement des notifications :",
+        err
+      );
+
       if (!silent) {
         setError(
           err.response?.status === 401
@@ -87,17 +127,14 @@ export default function NotificationBell() {
     } finally {
       loadingRef.current = false;
 
-      if (!silent) setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
-  // Chargement initial et actualisation périodique
+  // Chargement initial et actualisation toutes les 30 secondes.
   useEffect(() => {
-    if (!localStorage.getItem("access")) {
-      setNotifications([]);
-      return undefined;
-    }
-
     loadNotifications();
 
     const intervalId = window.setInterval(() => {
@@ -107,7 +144,7 @@ export default function NotificationBell() {
     return () => window.clearInterval(intervalId);
   }, [loadNotifications]);
 
-  // Fermer le menu en cliquant en dehors ou avec Échap
+  // Fermer le menu en cliquant à l'extérieur ou avec Échap.
   useEffect(() => {
     if (!open) return undefined;
 
@@ -133,8 +170,15 @@ export default function NotificationBell() {
     document.addEventListener("keydown", handleEscape);
 
     return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener(
+        "mousedown",
+        handleOutsideClick
+      );
+
+      document.removeEventListener(
+        "keydown",
+        handleEscape
+      );
     };
   }, [open]);
 
@@ -153,21 +197,31 @@ export default function NotificationBell() {
 
     if (!notification.is_read) {
       try {
-        const updated = await notificationService.markAsRead(
+        await notificationService.markAsRead(
           notification.id
         );
 
         setNotifications((current) =>
           current.map((item) =>
             item.id === notification.id
-              ? { ...item, ...updated, is_read: true }
+              ? { ...item, is_read: true }
               : item
           )
         );
+
+        setUnreadCount((current) =>
+          Math.max(0, current - 1)
+        );
       } catch (err) {
+        console.error(
+          "Erreur lors de la lecture de la notification :",
+          err
+        );
+
         setError(
           "Impossible de marquer cette notification comme lue."
         );
+
         return;
       }
     }
@@ -201,7 +255,14 @@ export default function NotificationBell() {
           is_read: true,
         }))
       );
+
+      setUnreadCount(0);
     } catch (err) {
+      console.error(
+        "Erreur lors de la lecture globale :",
+        err
+      );
+
       setError(
         "Impossible de mettre à jour les notifications."
       );
@@ -263,6 +324,7 @@ export default function NotificationBell() {
           <header className="notification-dropdown__header">
             <div>
               <h3>Notifications</h3>
+
               <p>
                 {unreadCount === 0
                   ? "Vous êtes à jour."
@@ -286,6 +348,7 @@ export default function NotificationBell() {
               role="alert"
             >
               {error}
+
               <button
                 type="button"
                 onClick={() => loadNotifications()}
@@ -296,7 +359,10 @@ export default function NotificationBell() {
           )}
 
           {loading && notifications.length === 0 && (
-            <div className="notification-dropdown__loading" role="status">
+            <div
+              className="notification-dropdown__loading"
+              role="status"
+            >
               <span className="notification-spinner" />
               <p>Chargement des notifications...</p>
             </div>
@@ -307,7 +373,9 @@ export default function NotificationBell() {
             notifications.length === 0 && (
               <div className="notification-dropdown__empty">
                 <span aria-hidden="true">🔔</span>
+
                 <strong>Aucune notification</strong>
+
                 <p>
                   Vos nouvelles notifications apparaîtront ici.
                 </p>
@@ -335,7 +403,8 @@ export default function NotificationBell() {
 
                   <span className="notification-item__content">
                     <span className="notification-item__title">
-                      {notification.title || "Nouvelle notification"}
+                      {notification.title ||
+                        "Nouvelle notification"}
                     </span>
 
                     <span className="notification-item__message">

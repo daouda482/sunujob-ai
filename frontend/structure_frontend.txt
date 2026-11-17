@@ -1,0 +1,161 @@
+Structure du dossier
+Le num�ro de s�rie du volume est E6F2-383F
+C:\XAMPP\HTDOCS\SUNUJOB-AI\FRONTEND\SRC
+|   api.js
+|   App.css
+|   App.jsx
+|   index.css
+|   main.jsx
+|   
++---api
+|       aiCoach.js
+|       axios.js
+|       
++---assets
+|       hero.png
+|       react.svg
+|       vite.svg
+|       
++---components
+|   |   Footer.css
+|   |   Footer.jsx
+|   |   Navbar.css
+|   |   Navbar.jsx
+|   |   NotificationBell.jsx
+|   |   ProtectedLayout.jsx
+|   |   ProtectedRoute.jsx
+|   |   reportButton.css
+|   |   ReportButton.jsx
+|   |   SupportDashboardCard.css
+|   |   SupportDashboardCard.jsx
+|   |   SupportShortcut.css
+|   |   SupportShortcut.jsx
+|   |   
+|   +---admin
+|   |       AdminLayout.jsx
+|   |       AdminSidebar.jsx
+|   |       
+|   \---recruiter
+|           RecruiterSidebar.jsx
+|           
++---context
+|       AuthContext.jsx
+|       
++---layouts
+|       CandidateLayout.css
+|       CandidateLayout.jsx
+|       
++---pages
+|   |   Applications.jsx
+|   |   ApplicationSuccess.css
+|   |   ApplicationSuccess.jsx
+|   |   Apply.jsx
+|   |   ApplyJob.css
+|   |   CandidateProfile.css
+|   |   CandidateProfile.jsx
+|   |   CandidateProfileChoices.css
+|   |   ComingSoon.jsx
+|   |   Home.css
+|   |   Home.jsx
+|   |   JobDetails.css
+|   |   JobDetails.jsx
+|   |   Jobs.css
+|   |   Jobs.jsx
+|   |   Login.css
+|   |   Login.jsx
+|   |   MyApplications.css
+|   |   MyApplications.jsx
+|   |   Notifications.css
+|   |   Notifications.jsx
+|   |   NotificationsPage.jsx
+|   |   Register.css
+|   |   Register.jsx
+|   |   
+|   +---admin
+|   |       adminApplications.css
+|   |       AdminApplications.jsx
+|   |       adminAuditLogs.css
+|   |       AdminAuditLogs.jsx
+|   |       adminCatalog.css
+|   |       AdminCatalog.jsx
+|   |       adminCompanies.css
+|   |       AdminCompanies.jsx
+|   |       adminDashboard.css
+|   |       AdminDashboard.jsx
+|   |       adminJobs.css
+|   |       AdminJobs.jsx
+|   |       adminModeration.css
+|   |       AdminModeration.jsx
+|   |       adminNavigation.css
+|   |       AdminNavigation.jsx
+|   |       adminNotifications.css
+|   |       AdminNotifications.jsx
+|   |       adminReports.css
+|   |       AdminReports.jsx
+|   |       adminSettings.css
+|   |       AdminSettings.jsx
+|   |       AdminSupport.jsx
+|   |       adminUsers.css
+|   |       AdminUsers.jsx
+|   |       adminVerifications.css
+|   |       AdminVerifications.jsx
+|   |       
+|   +---candidate
+|   |       AICoach.css
+|   |       AICoach.jsx
+|   |       Applications.css
+|   |       Applications.jsx
+|   |       Apply.css
+|   |       CandidateCV.css
+|   |       CandidateCV.jsx
+|   |       CandidateDashboard.css
+|   |       CandidateDashboard.jsx
+|   |       CandidateProfile.css
+|   |       CandidateProfile.jsx
+|   |       CoachAI.css
+|   |       CoachAI.jsx
+|   |       CVAnalysis.css
+|   |       CVAnalysis.jsx
+|   |       Favorites.css
+|   |       Favorites.jsx
+|   |       Interviews.css
+|   |       Interviews.jsx
+|   |       JobAlerts.css
+|   |       JobAlerts.jsx
+|   |       Recommendations.css
+|   |       Recommendations.jsx
+|   |       
+|   +---recruiter
+|   |       companyVerification.css
+|   |       CompanyVerification.jsx
+|   |       EvaluationDetails.jsx
+|   |       EvaluationForm.jsx
+|   |       Evaluations.css
+|   |       Evaluations.jsx
+|   |       RecruiterApplications.css
+|   |       RecruiterApplications.jsx
+|   |       RecruiterCompanies.css
+|   |       RecruiterCompanies.jsx
+|   |       RecruiterDashboard.css
+|   |       RecruiterDashboard.jsx
+|   |       RecruiterInterviews.css
+|   |       RecruiterInterviews.jsx
+|   |       RecruiterJobForm.css
+|   |       RecruiterJobForm.jsx
+|   |       RecruiterJobs.css
+|   |       RecruiterJobs.jsx
+|   |       RecruiterStatistics.css
+|   |       RecruiterStatistics.jsx
+|   |       
+|   \---support
+|           support.css
+|           SupportCenter.jsx
+|           
++---services
+|       api.js
+|       notificationService.js
+|       
+\---styles
+        adminDasboard.css
+        notifications.css
+        

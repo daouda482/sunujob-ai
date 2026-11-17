@@ -1,212 +1,428 @@
+/* =========================================================
+   SUNUJOB AI — MODÉRATION DES CANDIDATURES
+   Design professionnel, moderne et responsive
+========================================================= */
 
 .admin-applications-page {
-  --app-blue: #2559d6;
-  --app-dark: #17233b;
-  --app-muted: #77849a;
-  --app-border: #e5eaf2;
+  --app-primary: #4f46e5;
+  --app-primary-dark: #3730a3;
+  --app-text: #17233b;
+  --app-muted: #78849a;
+  --app-border: #e8edf5;
+  --app-surface: #ffffff;
+  --app-background: #f5f7fc;
+  --app-radius: 19px;
+
+  position: relative;
+  isolation: isolate;
+  width: 100%;
   min-height: 100vh;
-  padding: 30px;
-  background: #f5f7fb;
-  color: var(--app-dark);
+  padding: clamp(18px, 3vw, 36px);
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 0% 0%, #e8edff 0, transparent 32%),
+    radial-gradient(ellipse at 100% 25%, #e9f7f8 0, transparent 26%),
+    var(--app-background);
+  color: var(--app-text);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-.admin-applications-page,
-.admin-applications-page * {
+.admin-applications-page *,
+.admin-applications-page *::before,
+.admin-applications-page *::after {
   box-sizing: border-box;
 }
 
+.admin-applications-page button,
+.admin-applications-page input,
+.admin-applications-page select {
+  font: inherit;
+}
+
+.admin-applications-page button:focus-visible,
+.admin-applications-page a:focus-visible,
+.admin-applications-page input:focus-visible,
+.admin-applications-page select:focus-visible {
+  outline: 3px solid #a5b4fc;
+  outline-offset: 3px;
+}
+
+.admin-applications-page h1,
+.admin-applications-page h2,
+.admin-applications-page h3,
+.admin-applications-page p {
+  overflow-wrap: anywhere;
+}
+
+/* =========================================================
+   EN-TÊTE ADMINISTRATIF
+========================================================= */
+
 .admin-applications-header {
+  position: relative;
+  isolation: isolate;
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
-  gap: 22px;
-  margin-bottom: 25px;
+  align-items: center;
+  gap: 25px;
+  margin-bottom: 28px;
+  padding: clamp(25px, 4vw, 36px);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 25px;
+  background: linear-gradient(120deg, #171e45 0%, #293b80 56%, #4f46e5 100%);
+  box-shadow:
+    0 18px 42px rgba(43, 55, 125, 0.16),
+    inset 0 1px rgba(255, 255, 255, 0.15);
+}
+
+.admin-applications-header::before,
+.admin-applications-header::after {
+  position: absolute;
+  z-index: -1;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+}
+
+.admin-applications-header::before {
+  top: -125px;
+  right: 2%;
+  width: 320px;
+  height: 320px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.admin-applications-header::after {
+  right: 20%;
+  bottom: -180px;
+  width: 360px;
+  height: 360px;
+  background: rgba(129, 140, 248, 0.08);
+}
+
+.admin-applications-header > div {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
 }
 
 .admin-app-eyebrow {
-  color: var(--app-blue);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 1.6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 12px;
+  color: #c7d2fe;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 1.7px;
 }
 
 .admin-applications-header h1 {
-  margin: 9px 0;
-  font-size: clamp(25px, 3vw, 34px);
-  font-weight: 800;
-  letter-spacing: -1px;
+  margin: 0 0 11px;
+  color: #ffffff;
+  font-size: clamp(26px, 3vw, 37px);
+  font-weight: 850;
+  letter-spacing: -1.2px;
+  line-height: 1.2;
 }
 
 .admin-applications-header p {
   max-width: 650px;
   margin: 0;
-  color: var(--app-muted);
-  font-size: 14px;
+  color: #d8def8;
+  font-size: 13px;
   line-height: 1.8;
 }
 
-.admin-app-refresh,
-.admin-app-primary-button,
-.admin-app-reset-button,
-.admin-app-pagination button {
+.admin-app-refresh {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 41px;
-  padding: 10px 14px;
-  border: 1px solid var(--app-border);
-  border-radius: 9px;
-  background: #fff;
-  color: #344258;
+  gap: 9px;
+  min-height: 45px;
+  padding: 0 17px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #3730a3;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
+  box-shadow: 0 5px 15px rgba(10, 15, 50, 0.1);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
 }
 
-.admin-app-refresh:hover,
-.admin-app-reset-button:hover,
-.admin-app-pagination button:hover:not(:disabled) {
-  background: #f5f8ff;
-  border-color: #c6d3ec;
+.admin-app-refresh:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 9px 20px rgba(10, 15, 50, 0.18);
 }
 
-.admin-app-refresh:disabled,
-.admin-app-pagination button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
+.admin-app-refresh:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .admin-app-refresh span {
-  font-size: 20px;
+  font-size: 19px;
+  line-height: 1;
 }
+
+/* =========================================================
+   CARTES STATISTIQUES
+========================================================= */
 
 .admin-app-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
-  margin-bottom: 25px;
+  margin-bottom: 23px;
 }
 
 .admin-app-stat {
+  position: relative;
   display: flex;
-  align-items: flex-start;
-  gap: 13px;
+  align-items: center;
+  gap: 14px;
   min-width: 0;
-  padding: 21px 18px;
-  border: 1px solid #e7ecf4;
-  border-radius: 15px;
-  background: #fff;
-  box-shadow: 0 5px 18px rgba(35, 55, 90, 0.035);
+  min-height: 116px;
+  padding: 21px 19px;
+  overflow: hidden;
+  border: 1px solid rgba(226, 232, 243, 0.95);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  box-shadow: 0 5px 19px rgba(31, 45, 80, 0.035);
+  transition:
+    transform 190ms ease,
+    border-color 190ms ease,
+    box-shadow 190ms ease;
+}
+
+.admin-app-stat::after {
+  position: absolute;
+  right: -35px;
+  bottom: -48px;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: var(--app-glow, #eef2ff);
+  opacity: 0.5;
+  content: "";
+  pointer-events: none;
+  transition: transform 220ms ease;
+}
+
+.admin-app-stat:hover {
+  transform: translateY(-4px);
+  border-color: #d8defc;
+  box-shadow: 0 14px 30px rgba(45, 59, 109, 0.075);
+}
+
+.admin-app-stat:hover::after {
+  transform: scale(1.2);
 }
 
 .admin-app-stat-icon {
+  position: relative;
+  z-index: 1;
   display: grid;
-  flex: 0 0 43px;
-  width: 43px;
-  height: 43px;
+  flex: 0 0 47px;
+  width: 47px;
+  height: 47px;
   place-items: center;
-  border-radius: 12px;
-  font-size: 20px;
+  border: 1px solid rgba(79, 70, 229, 0.06);
+  border-radius: 14px;
+  font-size: 21px;
   font-weight: 800;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.8);
 }
 
 .admin-app-stat-icon--total {
-  color: #2559d6;
-  background: #edf3ff;
+  background: #eaf0ff;
+  color: #315ed0;
+}
+
+.admin-app-stat:has(.admin-app-stat-icon--total) {
+  --app-glow: #e5ebff;
 }
 
 .admin-app-stat-icon--pending {
+  background: #fff3dc;
   color: #a86b0b;
-  background: #fff5df;
+}
+
+.admin-app-stat:has(.admin-app-stat-icon--pending) {
+  --app-glow: #ffefd6;
 }
 
 .admin-app-stat-icon--review {
-  color: #7850bc;
-  background: #f1eaff;
+  background: #f0eaff;
+  color: #8051bd;
+}
+
+.admin-app-stat:has(.admin-app-stat-icon--review) {
+  --app-glow: #efe5ff;
 }
 
 .admin-app-stat-icon--accepted {
-  color: #148357;
-  background: #e6f8ef;
+  background: #e4f8ed;
+  color: #168452;
+}
+
+.admin-app-stat:has(.admin-app-stat-icon--accepted) {
+  --app-glow: #dcf7e7;
 }
 
 .admin-app-stat > div {
+  position: relative;
+  z-index: 1;
   display: flex;
+  min-width: 0;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .admin-app-stat > div > span {
-  color: #67758c;
+  color: #69758c;
   font-size: 11px;
   font-weight: 700;
+  line-height: 1.5;
 }
 
 .admin-app-stat strong {
-  color: #192740;
-  font-size: 28px;
-  font-weight: 800;
+  color: #17233c;
+  font-size: clamp(25px, 2.4vw, 32px);
+  font-weight: 850;
+  letter-spacing: -1px;
   line-height: 1.15;
+  font-variant-numeric: tabular-nums;
 }
 
 .admin-app-stat small {
-  color: #9aa4b5;
+  color: #929db0;
   font-size: 10px;
 }
 
+/* =========================================================
+   ALERTES
+========================================================= */
+
+.admin-app-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 19px;
+  padding: 15px 17px;
+  border: 1px solid;
+  border-radius: 13px;
+  font-size: 12px;
+  line-height: 1.7;
+  box-shadow: 0 4px 13px rgba(31, 45, 80, 0.025);
+}
+
+.admin-app-alert strong {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.admin-app-alert--error {
+  border-color: #f5d3d8;
+  background: #fff5f6;
+  color: #923d49;
+}
+
+.admin-app-alert--success {
+  border-color: #d3f0df;
+  background: #effbf4;
+  color: #18794e;
+}
+
+/* =========================================================
+   PANNEAU PRINCIPAL
+========================================================= */
+
 .admin-app-panel {
+  min-width: 0;
   overflow: hidden;
-  border: 1px solid #e6ebf3;
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 5px 23px rgba(31, 51, 88, 0.035);
+  border: 1px solid var(--app-border);
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow:
+    0 5px 22px rgba(31, 45, 80, 0.035),
+    0 15px 35px rgba(31, 45, 80, 0.025);
 }
 
 .admin-app-panel-heading {
-  padding: 22px 24px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: 23px 25px 19px;
 }
 
 .admin-app-panel-heading h2 {
-  margin: 0 0 7px;
+  margin: 0 0 6px;
+  color: #202b43;
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 850;
+  letter-spacing: -0.4px;
 }
 
 .admin-app-panel-heading p {
   margin: 0;
-  color: #8792a5;
-  font-size: 12px;
+  color: #8994a8;
+  font-size: 11px;
 }
+
+/* =========================================================
+   RECHERCHE ET FILTRES
+========================================================= */
 
 .admin-app-filters {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  padding: 16px 24px;
-  border-top: 1px solid #edf0f5;
-  border-bottom: 1px solid #edf0f5;
-  background: #fbfcfe;
+  padding: 15px 22px;
+  border-top: 1px solid #edf0f6;
+  border-bottom: 1px solid #edf0f6;
+  background: #fafbfe;
 }
 
 .admin-app-search {
   display: flex;
-  flex: 1 1 240px;
+  flex: 1 1 230px;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   min-width: 180px;
-  height: 42px;
+  min-height: 42px;
   padding: 0 12px;
-  border: 1px solid #dfe5ef;
-  border-radius: 9px;
-  background: #fff;
+  border: 1px solid #e1e7f1;
+  border-radius: 10px;
+  background: #ffffff;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.admin-app-search:focus-within {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .admin-app-search > span {
   color: #7d8aa1;
   font-size: 21px;
+  line-height: 1;
 }
 
 .admin-app-search input {
@@ -217,184 +433,286 @@
   outline: none;
   background: transparent;
   color: #25334b;
-  font-size: 12px;
+  font-size: 11px;
+}
+
+.admin-app-search input::placeholder {
+  color: #929db0;
 }
 
 .admin-app-filters select,
 .admin-app-modal-status-control select {
   min-width: 135px;
-  height: 42px;
+  min-height: 42px;
   padding: 0 28px 0 11px;
-  border: 1px solid #dfe5ef;
-  border-radius: 9px;
-  outline-color: #8eaff9;
-  background: #fff;
+  border: 1px solid #e1e7f1;
+  border-radius: 10px;
+  outline: none;
+  background: #ffffff;
   color: #43516a;
-  font-size: 12px;
+  font-size: 11px;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.admin-app-filters select:focus,
+.admin-app-modal-status-control select:focus {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.admin-app-primary-button,
+.admin-app-reset-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid #e1e7f1;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #344258;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .admin-app-primary-button {
-  border-color: var(--app-blue);
-  background: var(--app-blue);
-  color: #fff;
+  border-color: #4f46e5;
+  background: linear-gradient(135deg, #5148e8, #4338ca);
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.16);
 }
 
 .admin-app-primary-button:hover {
-  border-color: #1843ad;
-  background: #1843ad;
+  transform: translateY(-1px);
+  border-color: #3730a3;
+  background: #3730a3;
+  box-shadow: 0 6px 14px rgba(79, 70, 229, 0.2);
 }
+
+.admin-app-reset-button:hover {
+  border-color: #cbd4e7;
+  background: #f3f5ff;
+  color: #4338ca;
+}
+
+/* =========================================================
+   TABLEAU DES CANDIDATURES
+========================================================= */
 
 .admin-app-table-wrap {
   width: 100%;
   overflow-x: auto;
+  scrollbar-color: #cbd3e2 #f4f6fa;
+  scrollbar-width: thin;
 }
 
 .admin-app-table {
   width: 100%;
-  border-collapse: collapse;
+  min-width: 1000px;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #ffffff;
   text-align: left;
   white-space: nowrap;
 }
 
-.admin-app-table th {
-  padding: 15px 17px;
-  border-bottom: 1px solid #e9edf4;
+.admin-app-table thead {
   background: #f8faff;
-  color: #738097;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
+}
+
+.admin-app-table th {
+  padding: 15px 16px;
+  border-bottom: 1px solid #e9edf5;
+  color: #78849b;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.7px;
   text-transform: uppercase;
 }
 
 .admin-app-table td {
-  padding: 16px 17px;
-  border-bottom: 1px solid #eff2f7;
-  color: #526078;
+  padding: 15px 16px;
+  border-bottom: 1px solid #f0f2f7;
+  color: #5c6980;
   font-size: 11px;
   vertical-align: middle;
 }
 
+.admin-app-table tbody tr {
+  transition: background 150ms ease;
+}
+
 .admin-app-table tbody tr:hover {
-  background: #fafcff;
+  background: #f7f8ff;
 }
 
 .admin-app-table tbody tr:last-child td {
   border-bottom: none;
 }
 
+.admin-app-table td:first-child,
+.admin-app-table th:first-child {
+  padding-left: 19px;
+}
+
+/* =========================================================
+   IDENTITÉ DU CANDIDAT
+========================================================= */
+
 .admin-app-candidate {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 180px;
+  min-width: 195px;
 }
 
 .admin-app-avatar {
   display: grid;
-  flex: 0 0 38px;
-  width: 38px;
-  height: 38px;
+  flex: 0 0 39px;
+  width: 39px;
+  height: 39px;
   place-items: center;
-  border: 1px solid #dce7ff;
+  border: 1px solid #dfe6ff;
   border-radius: 12px;
-  background: #edf3ff;
-  color: #2559d6;
-  font-size: 14px;
-  font-weight: 800;
+  background: linear-gradient(145deg, #eef2ff, #e3e9ff);
+  color: #4f46e5;
+  font-size: 13px;
+  font-weight: 850;
 }
 
 .admin-app-candidate > div,
 .admin-app-job {
   display: flex;
+  min-width: 0;
+  max-width: 220px;
   flex-direction: column;
-  gap: 5px;
-  max-width: 230px;
+  gap: 4px;
   white-space: normal;
 }
 
 .admin-app-candidate strong,
 .admin-app-job strong {
-  color: #293750;
+  color: #27344d;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 850;
   line-height: 1.5;
 }
 
 .admin-app-candidate span:not(.admin-app-avatar),
 .admin-app-job span {
-  color: #79869a;
+  color: #7f8ba0;
   font-size: 10px;
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
 .admin-app-candidate small {
   color: #a0a9b8;
-  font-size: 10px;
+  font-size: 9px;
 }
+
+/* =========================================================
+   BADGES DE STATUT
+========================================================= */
 
 .admin-app-status {
   display: inline-flex;
+  justify-content: center;
   align-items: center;
   gap: 7px;
-  padding: 7px 9px;
+  max-width: 160px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
   border-radius: 30px;
-  font-size: 10px;
-  font-weight: 800;
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1.5;
+  white-space: normal;
 }
 
 .admin-app-status-dot {
   width: 6px;
   height: 6px;
+  flex: 0 0 6px;
   border-radius: 50%;
   background: currentColor;
 }
 
 .admin-app-status--pending {
-  background: #fff5df;
-  color: #a86b0b;
+  border-color: #f9e8bd;
+  background: #fff7e5;
+  color: #a16a0d;
 }
 
 .admin-app-status--reviewing {
+  border-color: #dce7ff;
   background: #edf3ff;
-  color: #2559d6;
+  color: #315fbe;
 }
 
 .admin-app-status--shortlisted {
-  background: #f1eaff;
-  color: #7850bc;
+  border-color: #eadcff;
+  background: #f5edff;
+  color: #8051bd;
 }
 
 .admin-app-status--interview {
-  background: #e6f5ff;
-  color: #1372aa;
+  border-color: #d5f0f2;
+  background: #e8f9fa;
+  color: #147e8d;
 }
 
 .admin-app-status--accepted {
-  background: #e6f8ef;
-  color: #148357;
+  border-color: #d4f3e2;
+  background: #e9fbf1;
+  color: #208253;
 }
 
 .admin-app-status--rejected {
-  background: #fff0ec;
-  color: #bd4c35;
+  border-color: #f9dadd;
+  background: #fff0f1;
+  color: #b84250;
 }
 
 .admin-app-status--withdrawn {
-  background: #edf0f5;
-  color: #687487;
+  border-color: #e4e8ef;
+  background: #f1f3f7;
+  color: #69758a;
 }
 
+/* =========================================================
+   MODIFICATION DU STATUT ET EXAMEN
+========================================================= */
+
 .admin-app-status-select {
-  max-width: 150px;
-  min-height: 34px;
+  max-width: 155px;
+  min-height: 35px;
   padding: 6px 25px 6px 9px;
-  border: 1px solid #e0e6ef;
-  border-radius: 8px;
-  outline-color: #8eaff9;
-  background: #fff;
+  border: 1px solid #e2e7f0;
+  border-radius: 9px;
+  outline: none;
+  background: #ffffff;
   color: #43516a;
-  font-size: 11px;
+  font-size: 10px;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.admin-app-status-select:focus {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .admin-app-status-select:disabled {
@@ -403,20 +721,30 @@
 }
 
 .admin-app-details-button {
-  min-height: 32px;
-  padding: 7px 11px;
-  border: 1px solid #dbe5fb;
-  border-radius: 8px;
-  background: #eff4ff;
-  color: #2559d6;
-  font-size: 11px;
-  font-weight: 800;
+  min-height: 33px;
+  padding: 7px 12px;
+  border: 1px solid #dce4ff;
+  border-radius: 9px;
+  background: #eff2ff;
+  color: #4338ca;
+  font-size: 10px;
+  font-weight: 850;
   cursor: pointer;
+  transition:
+    transform 150ms ease,
+    background 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .admin-app-details-button:hover {
-  background: #dfe9ff;
+  transform: translateY(-1px);
+  background: #e1e7ff;
+  box-shadow: 0 4px 10px rgba(67, 56, 202, 0.09);
 }
+
+/* =========================================================
+   CHARGEMENT ET ÉTAT VIDE
+========================================================= */
 
 .admin-app-empty {
   padding: 52px 20px !important;
@@ -434,7 +762,8 @@
 
 .admin-app-empty p {
   margin: 7px 0 0;
-  font-size: 12px;
+  color: #8994a8;
+  font-size: 11px;
 }
 
 .admin-app-empty-icon {
@@ -447,10 +776,10 @@
   width: 19px;
   height: 19px;
   margin-right: 10px;
-  border: 2px solid #dce5fa;
-  border-top-color: #2559d6;
+  border: 2px solid #e6eafd;
+  border-top-color: #4f46e5;
   border-radius: 50%;
-  animation: admin-app-spin 0.8s linear infinite;
+  animation: admin-app-spin 800ms linear infinite;
   vertical-align: middle;
 }
 
@@ -460,124 +789,153 @@
   }
 }
 
+/* =========================================================
+   PAGINATION
+========================================================= */
+
 .admin-app-pagination {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   gap: 15px;
-  padding: 16px 24px;
-  border-top: 1px solid #edf0f5;
+  padding: 16px 22px;
+  border-top: 1px solid #edf0f6;
+  background: #ffffff;
 }
 
 .admin-app-pagination > span {
   color: #8490a4;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .admin-app-pagination > div {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .admin-app-pagination button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 36px;
-  font-size: 11px;
+  padding: 0 13px;
+  border: 1px solid #e5eaf2;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #42516a;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease;
 }
 
-.admin-app-alert {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 18px;
-  padding: 13px 15px;
-  border: 1px solid;
-  border-radius: 10px;
-  font-size: 12px;
-  line-height: 1.6;
+.admin-app-pagination button:hover:not(:disabled) {
+  border-color: #cbd4f7;
+  background: #f2f4ff;
+  color: #4338ca;
 }
 
-.admin-app-alert--error {
-  border-color: #f5c8c4;
-  background: #fff2f0;
-  color: #a53f37;
+.admin-app-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
-.admin-app-alert--success {
-  border-color: #c5ecd5;
-  background: #effbf4;
-  color: #16784c;
-}
-
-.admin-app-alert strong {
-  flex-shrink: 0;
-}
+/* =========================================================
+   FENÊTRE D'EXAMEN D'UNE CANDIDATURE
+========================================================= */
 
 .admin-app-modal-overlay {
   position: fixed;
   z-index: 1000;
   inset: 0;
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   overflow-y: auto;
   padding: 24px;
-  background: rgba(19, 30, 51, 0.57);
-  backdrop-filter: blur(5px);
+  background: rgba(19, 30, 51, 0.62);
+  backdrop-filter: blur(6px);
 }
 
 .admin-app-modal {
   width: min(760px, 100%);
   max-height: calc(100vh - 48px);
   overflow: auto;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 18px;
-  background: #fff;
-  box-shadow: 0 25px 80px rgba(13, 26, 49, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 25px 80px rgba(13, 26, 49, 0.27);
+  animation: admin-app-modal-enter 180ms ease-out;
+}
+
+@keyframes admin-app-modal-enter {
+  from {
+    transform: translateY(9px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .admin-app-modal-header {
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 18px;
-  padding: 24px;
-  border-bottom: 1px solid #edf0f5;
+  padding: 25px;
+  border-bottom: 1px solid #edf0f6;
+  background: linear-gradient(135deg, #fbfcff, #f4f6ff);
 }
 
 .admin-app-modal-header h2 {
-  margin: 9px 0 7px;
+  margin: 8px 0 7px;
   color: #1b2941;
   font-size: 23px;
-  font-weight: 800;
+  font-weight: 850;
+  letter-spacing: -0.6px;
 }
 
 .admin-app-modal-header p {
   margin: 0;
   color: #758198;
-  font-size: 12px;
+  font-size: 11px;
   overflow-wrap: anywhere;
+}
+
+.admin-app-modal-header .admin-app-eyebrow {
+  color: #4f46e5;
 }
 
 .admin-app-modal-close {
   display: grid;
-  flex: 0 0 36px;
-  width: 36px;
-  height: 36px;
+  flex: 0 0 37px;
+  width: 37px;
+  height: 37px;
   place-items: center;
   border: 1px solid #e4e9f1;
-  border-radius: 10px;
-  background: #fff;
+  border-radius: 11px;
+  background: #ffffff;
   color: #526078;
-  font-size: 24px;
+  font-size: 23px;
   cursor: pointer;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
 }
 
 .admin-app-modal-close:hover {
-  background: #f4f6fa;
+  background: #eef1ff;
+  color: #4338ca;
 }
 
 .admin-app-modal-body {
-  padding: 24px;
+  padding: 25px;
 }
 
 .admin-app-modal-status {
@@ -595,41 +953,44 @@
   min-width: 0;
   flex-direction: column;
   gap: 7px;
-  padding: 14px;
-  border: 1px solid #edf0f5;
-  border-radius: 11px;
-  background: #fbfcfe;
+  padding: 15px;
+  border: 1px solid #edf0f6;
+  border-radius: 12px;
+  background: #fafbfe;
 }
 
 .admin-app-detail-grid span,
 .admin-app-resume > span {
   color: #8994a7;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 750;
 }
 
 .admin-app-detail-grid strong {
   color: #344258;
   font-size: 12px;
+  font-weight: 750;
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
 
 .admin-app-detail-section {
   margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #edf0f6;
 }
 
 .admin-app-detail-section h3 {
   margin: 0 0 10px;
   color: #26344c;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 850;
 }
 
 .admin-app-detail-section p {
   margin: 0;
   color: #657187;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.85;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
@@ -637,20 +998,20 @@
 
 .admin-app-resume {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   gap: 15px;
   margin-top: 22px;
-  padding: 14px;
+  padding: 15px;
   border: 1px solid #e5eaf2;
-  border-radius: 11px;
-  background: #fbfcfe;
+  border-radius: 12px;
+  background: #fafbfe;
 }
 
 .admin-app-resume a {
-  color: #2559d6;
-  font-size: 12px;
-  font-weight: 800;
+  color: #4f46e5;
+  font-size: 11px;
+  font-weight: 850;
   text-decoration: none;
 }
 
@@ -660,13 +1021,13 @@
 
 .admin-app-modal-footer {
   display: flex;
-  align-items: center;
   justify-content: flex-end;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  padding: 17px 24px;
-  border-top: 1px solid #edf0f5;
-  background: #fbfcfe;
+  gap: 13px;
+  padding: 17px 25px;
+  border-top: 1px solid #edf0f6;
+  background: #fafbfe;
 }
 
 .admin-app-modal-status-control {
@@ -678,58 +1039,105 @@
 .admin-app-modal-status-control > span {
   color: #66748a;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 750;
 }
 
 .admin-app-modal-status-control select {
-  min-width: 150px;
+  min-width: 155px;
 }
+
+/* =========================================================
+   RESPONSIVE — TABLETTES
+========================================================= */
 
 @media (max-width: 1100px) {
   .admin-app-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .admin-app-filters {
+    padding-right: 17px;
+    padding-left: 17px;
+  }
 }
+
+/* =========================================================
+   RESPONSIVE — MOBILES
+========================================================= */
 
 @media (max-width: 700px) {
   .admin-applications-page {
-    padding: 17px 12px;
+    padding: 17px 13px 28px;
   }
 
   .admin-applications-header {
     flex-direction: column;
+    align-items: stretch;
+    gap: 20px;
+    padding: 24px 20px;
+    border-radius: 20px;
   }
 
   .admin-applications-header h1 {
-    font-size: 26px;
+    font-size: 27px;
+  }
+
+  .admin-applications-header p {
+    font-size: 12px;
+  }
+
+  .admin-app-refresh {
+    align-self: flex-start;
   }
 
   .admin-app-stats {
-    grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 11px;
   }
 
   .admin-app-stat {
+    min-height: 100px;
     padding: 17px;
+    border-radius: 15px;
+  }
+
+  .admin-app-stat-icon {
+    width: 42px;
+    height: 42px;
+    flex-basis: 42px;
+    border-radius: 12px;
+  }
+
+  .admin-app-stat strong {
+    font-size: 27px;
+  }
+
+  .admin-app-panel {
+    border-radius: 16px;
   }
 
   .admin-app-panel-heading {
-    padding: 18px;
+    padding: 19px 17px;
+  }
+
+  .admin-app-panel-heading h2 {
+    font-size: 16px;
   }
 
   .admin-app-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     padding: 15px;
   }
 
-  .admin-app-filters > *,
-  .admin-app-search {
-    flex: 1 1 100%;
+  .admin-app-search,
+  .admin-app-filters select,
+  .admin-app-filters button {
     width: 100%;
-    max-width: none;
+    min-width: 0;
   }
 
-  .admin-app-filters select {
-    width: 100%;
+  .admin-app-table {
+    min-width: 1000px;
   }
 
   .admin-app-pagination {
@@ -745,6 +1153,7 @@
 
   .admin-app-modal {
     max-height: calc(100vh - 24px);
+    border-radius: 16px;
   }
 
   .admin-app-modal-header,
@@ -752,14 +1161,22 @@
     padding: 18px;
   }
 
+  .admin-app-modal-header h2 {
+    font-size: 20px;
+  }
+
   .admin-app-detail-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .admin-app-modal-footer {
     align-items: stretch;
     flex-direction: column;
     padding: 16px 18px;
+  }
+
+  .admin-app-modal-footer > button {
+    width: 100%;
   }
 
   .admin-app-modal-status-control {
@@ -769,5 +1186,55 @@
 
   .admin-app-modal-status-control select {
     width: 100%;
+  }
+}
+
+/* =========================================================
+   RESPONSIVE — TRÈS PETITS MOBILES
+========================================================= */
+
+@media (max-width: 380px) {
+  .admin-applications-page {
+    padding: 13px 10px 22px;
+  }
+
+  .admin-applications-header {
+    padding: 21px 16px;
+  }
+
+  .admin-applications-header h1 {
+    font-size: 24px;
+  }
+
+  .admin-app-stat {
+    padding: 14px;
+  }
+
+  .admin-app-pagination > div {
+    width: 100%;
+  }
+
+  .admin-app-pagination button {
+    flex: 1;
+  }
+
+  .admin-app-resume {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* =========================================================
+   ACCESSIBILITÉ — MOUVEMENTS RÉDUITS
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-applications-page *,
+  .admin-applications-page *::before,
+  .admin-applications-page *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

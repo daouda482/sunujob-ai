@@ -14,7 +14,7 @@ import {
   Award,
 } from "lucide-react";
 
-import api from "../../services/api.js";
+import api from "../../api/axios";
 import "./CVAnalysis.css";
 
 const ANALYSIS_ENDPOINT = "candidates/cv-analysis/";

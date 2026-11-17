@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../../services/api.js";
+import api from "../../api/axios";
 import "./CandidateProfile.css";
 
 /* =========================================================
@@ -103,12 +103,8 @@ export default function CandidateProfile() {
 
         setFormData((previous) => ({
           ...previous,
-
-          // Les fichiers déjà enregistrés ne sont pas
-          // des objets File. Ils ne doivent pas être renvoyés.
           photo: null,
           resume: null,
-
           date_of_birth: profile.date_of_birth || "",
           address: profile.address || "",
           city: profile.city || "",
@@ -129,7 +125,6 @@ export default function CandidateProfile() {
           return;
         }
 
-        // Un profil inexistant correspond à une première création.
         if (err.response?.status === 404) {
           setExistingProfile(false);
         } else {
@@ -232,8 +227,6 @@ export default function CandidateProfile() {
 
     if (loading) return;
 
-    // On conserve la référence du formulaire avant le await.
-    // Cela permet de le réinitialiser correctement après la requête.
     const formElement = event.currentTarget;
 
     setError("");
@@ -251,7 +244,6 @@ export default function CandidateProfile() {
     try {
       const payload = new FormData();
 
-      // Ajouter les champs textuels et numériques.
       Object.entries(formData).forEach(([key, value]) => {
         if (key === "photo" || key === "resume") {
           return;
@@ -262,7 +254,6 @@ export default function CandidateProfile() {
         }
       });
 
-      // Ajouter uniquement les véritables fichiers.
       if (isBrowserFile(formData.photo)) {
         payload.append(
           "photo",
@@ -283,8 +274,7 @@ export default function CandidateProfile() {
         ? "candidates/profile/me/"
         : "candidates/profile/";
 
-      // Ne pas définir manuellement Content-Type.
-      // Le navigateur et Axios gèrent le multipart/form-data.
+      // Axios centralisé gère automatiquement le multipart/form-data.
       if (existingProfile) {
         await api.patch(endpoint, payload);
       } else {
@@ -297,14 +287,12 @@ export default function CandidateProfile() {
         "Ton profil candidat a été enregistré avec succès."
       );
 
-      // Réinitialiser uniquement les champs fichiers.
       setFormData((previous) => ({
         ...previous,
         photo: null,
         resume: null,
       }));
 
-      // Réinitialiser les champs fichier visibles.
       formElement.reset();
     } catch (err) {
       console.error(

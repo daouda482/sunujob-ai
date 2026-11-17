@@ -1,7 +1,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import api from "../../api";
+import api from "../../api/axios";
 import "./RecruiterCompanies.css";
 
 const EMPTY_FORM = {

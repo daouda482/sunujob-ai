@@ -2,7 +2,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import api from "../services/api.js";
+
+// Utilisation du client Axios central.
+import api from "../api/axios";
+
 import "./Navbar.css";
 
 export default function Navbar() {
@@ -75,6 +78,7 @@ export default function Navbar() {
       setUnreadCount(
         Number(response.data?.unread_count) || 0
       );
+
     } catch (error) {
       if (error.response?.status === 401) {
         setUnreadCount(0);
@@ -116,9 +120,7 @@ export default function Navbar() {
     <header className="sj-navbar">
       <div className="sj-navbar-inner">
 
-        {/* =====================================
-            LOGO SUNUJOB AI
-        ===================================== */}
+        {/* LOGO SUNUJOB AI */}
 
         <Link
           to="/"
@@ -138,9 +140,7 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* =====================================
-            NAVIGATION DESKTOP
-        ===================================== */}
+        {/* NAVIGATION DESKTOP */}
 
         <nav
           className="sj-desktop-nav"
@@ -172,9 +172,7 @@ export default function Navbar() {
           )}
         </nav>
 
-        {/* =====================================
-            ACTIONS DESKTOP
-        ===================================== */}
+        {/* ACTIONS DESKTOP */}
 
         <div className="sj-navbar-actions">
 
@@ -258,9 +256,7 @@ export default function Navbar() {
 
         </div>
 
-        {/* =====================================
-            BOUTON MENU MOBILE
-        ===================================== */}
+        {/* BOUTON MENU MOBILE */}
 
         <button
           type="button"
@@ -280,9 +276,7 @@ export default function Navbar() {
 
       </div>
 
-      {/* =====================================
-          MENU MOBILE
-      ===================================== */}
+      {/* MENU MOBILE */}
 
       <div
         className={`sj-mobile-menu${

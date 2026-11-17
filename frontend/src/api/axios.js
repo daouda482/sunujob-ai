@@ -5,7 +5,10 @@ const BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   "http://127.0.0.1:8000/api/";
 
-// Instance Axios principale
+// ============================================================
+// INSTANCES AXIOS
+// ============================================================
+
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 30000,
@@ -14,8 +17,7 @@ const api = axios.create({
   },
 });
 
-// Instance indépendante pour renouveler les JWT.
-// Elle évite de déclencher les intercepteurs de l'instance principale.
+// Client indépendant pour le renouvellement JWT.
 const refreshClient = axios.create({
   baseURL: BASE_URL,
   timeout: 30000,
@@ -24,8 +26,40 @@ const refreshClient = axios.create({
   },
 });
 
-// Une seule opération de renouvellement à la fois.
 let refreshPromise = null;
+
+
+// ============================================================
+// ROUTES PUBLIQUES D'AUTHENTIFICATION
+// ============================================================
+
+const publicAuthRoutes = [
+  "register",
+  "auth/register",
+  "users/register",
+  "login",
+  "auth/login",
+  "users/login",
+  "token",
+  "token/refresh",
+];
+
+function normalizeUrl(url = "") {
+  return String(url)
+    .split(/[?#]/)[0]
+    .replace(/\\/g, "/")
+    .replace(/\/+$/, "");
+}
+
+function isPublicAuthEndpoint(url = "") {
+  const cleanUrl = normalizeUrl(url);
+
+  return publicAuthRoutes.some(
+    (route) =>
+      cleanUrl === route ||
+      cleanUrl.endsWith(`/${route}`)
+  );
+}
 
 
 // ============================================================
@@ -53,10 +87,15 @@ function getAuthStorage() {
 }
 
 function getAccessToken() {
-  return (
-    localStorage.getItem("access") ||
-    sessionStorage.getItem("access")
-  );
+  const storage = getAuthStorage();
+
+  return storage ? storage.getItem("access") : null;
+}
+
+function getRefreshToken() {
+  const storage = getAuthStorage();
+
+  return storage ? storage.getItem("refresh") : null;
 }
 
 function clearAuthStorage() {
@@ -66,13 +105,18 @@ function clearAuthStorage() {
   });
 }
 
-function isAuthEndpoint(url = "") {
-  const cleanUrl = String(url).split("?")[0];
 
-  return (
-    cleanUrl.endsWith("token/") ||
-    cleanUrl.endsWith("token/refresh/")
-  );
+// ============================================================
+// REDIRECTION VERS LA CONNEXION
+// ============================================================
+
+function redirectToLogin() {
+  if (
+    typeof window !== "undefined" &&
+    window.location.pathname !== "/login"
+  ) {
+    window.location.assign("/login");
+  }
 }
 
 
@@ -87,7 +131,7 @@ async function refreshAccessToken() {
 
       if (!storage) {
         throw new Error(
-          "Aucun jeton de renouvellement disponible."
+          "Aucun stockage d'authentification disponible."
         );
       }
 
@@ -110,14 +154,13 @@ async function refreshAccessToken() {
 
       if (!newAccessToken) {
         throw new Error(
-          "Le serveur n'a pas retourné de nouveau Access Token."
+          "Le serveur n'a pas retourné de nouvel Access Token."
         );
       }
 
       storage.setItem("access", newAccessToken);
 
-      // Utile si la rotation des Refresh Tokens est activée
-      // ultérieurement dans Django.
+      // Gestion de la rotation éventuelle du Refresh Token.
       if (response.data?.refresh) {
         storage.setItem(
           "refresh",
@@ -141,18 +184,26 @@ async function refreshAccessToken() {
 
 api.interceptors.request.use(
   (config) => {
-    const token = getAccessToken();
-
     config.headers = config.headers || {};
 
-    if (token && !isAuthEndpoint(config.url)) {
-      config.headers.Authorization = `Bearer ${token}`;
-    } else if (isAuthEndpoint(config.url)) {
+    // Les routes publiques ne doivent pas recevoir
+    // un ancien Access Token.
+    if (isPublicAuthEndpoint(config.url)) {
+      delete config.headers.Authorization;
+      return config;
+    }
+
+    const accessToken = getAccessToken();
+
+    if (accessToken) {
+      config.headers.Authorization =
+        `Bearer ${accessToken}`;
+    } else {
       delete config.headers.Authorization;
     }
 
-    // Axios gère lui-même le Content-Type des FormData.
-    // Cela permet de conserver la bonne boundary multipart.
+    // Laisser Axios définir automatiquement le Content-Type
+    // et la boundary pour les données FormData.
     if (
       typeof FormData !== "undefined" &&
       config.data instanceof FormData
@@ -177,24 +228,42 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Ne traiter que les erreurs 401.
     if (
       error.response?.status !== 401 ||
       !originalRequest ||
       originalRequest._retry ||
-      isAuthEndpoint(originalRequest.url)
+      isPublicAuthEndpoint(originalRequest.url)
     ) {
+      return Promise.reject(error);
+    }
+
+    const storage = getAuthStorage();
+
+    const hadSession = Boolean(
+      storage &&
+      (
+        storage.getItem("access") ||
+        storage.getItem("refresh")
+      )
+    );
+
+    // Ne pas rediriger les visiteurs non connectés.
+    if (!hadSession) {
       return Promise.reject(error);
     }
 
     originalRequest._retry = true;
 
-    const hadSession = Boolean(
-      getAccessToken() ||
-      localStorage.getItem("refresh") ||
-      sessionStorage.getItem("refresh")
-    );
-
     try {
+      const refreshToken = getRefreshToken();
+
+      if (!refreshToken) {
+        throw new Error(
+          "Session expirée : Refresh Token indisponible."
+        );
+      }
+
       const newAccessToken = await refreshAccessToken();
 
       originalRequest.headers =
@@ -203,21 +272,12 @@ api.interceptors.response.use(
       originalRequest.headers.Authorization =
         `Bearer ${newAccessToken}`;
 
-      // Rejoue la requête initiale avec le nouveau JWT.
+      // Rejouer la requête avec le nouveau JWT.
       return api(originalRequest);
 
     } catch (refreshError) {
       clearAuthStorage();
-
-      // Ne redirige pas les visiteurs non connectés
-      // qui reçoivent simplement une erreur 401.
-      if (
-        hadSession &&
-        typeof window !== "undefined" &&
-        window.location.pathname !== "/login"
-      ) {
-        window.location.assign("/login");
-      }
+      redirectToLogin();
 
       return Promise.reject(refreshError);
     }

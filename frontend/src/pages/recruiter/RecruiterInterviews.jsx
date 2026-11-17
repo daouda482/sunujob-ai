@@ -27,11 +27,20 @@ const EMPTY_FORM = {
   status: "SCHEDULED",
 };
 
+function normalizeList(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.results)) return data.results;
+  return [];
+}
+
 function formatDate(value) {
   if (!value) return "Non renseignée";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Date invalide";
+
+  if (Number.isNaN(date.getTime())) {
+    return "Date invalide";
+  }
 
   return new Intl.DateTimeFormat("fr-FR", {
     dateStyle: "medium",
@@ -43,10 +52,26 @@ function toLocalDateTime(value) {
   if (!value) return "";
 
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return "";
 
   const offset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+
+  return new Date(date.getTime() - offset)
+    .toISOString()
+    .slice(0, 16);
+}
+
+function isValidHttpUrl(value) {
+  if (!value?.trim()) return false;
+
+  try {
+    const url = new URL(value.trim());
+
+    return ["http:", "https:"].includes(url.protocol);
+  } catch {
+    return false;
+  }
 }
 
 function getErrorMessage(error) {
@@ -60,7 +85,7 @@ function getErrorMessage(error) {
         const message = Array.isArray(value)
           ? value
               .map((item) =>
-                typeof item === "object"
+                typeof item === "object" && item !== null
                   ? JSON.stringify(item)
                   : String(item)
               )
@@ -82,47 +107,54 @@ export default function RecruiterInterviews() {
 
   const [interviews, setInterviews] = useState([]);
   const [applications, setApplications] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingInterview, setEditingInterview] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
   const [actionId, setActionId] = useState(null);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingInterview, setEditingInterview] = useState(null);
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+
+  // =====================================================
+  // CHARGEMENT DES ENTRETIENS ET DES CANDIDATURES
+  // =====================================================
+
+  const loadData = useCallback(async ({ showLoading = true } = {}) => {
+    if (showLoading) {
+      setLoading(true);
+    }
+
     setError("");
 
     try {
-      const [interviewResponse, applicationResponse] = await Promise.all([
-        api.get("interviews/recruiter/"),
-        api.get("applications/received/"),
-      ]);
+      const [interviewResponse, applicationResponse] =
+        await Promise.all([
+          api.get("interviews/recruiter/"),
+          api.get("applications/received/"),
+        ]);
 
-      const interviewData = interviewResponse.data;
-      const applicationData = applicationResponse.data;
+      setInterviews(normalizeList(interviewResponse.data));
+      setApplications(normalizeList(applicationResponse.data));
 
-      setInterviews(
-        Array.isArray(interviewData)
-          ? interviewData
-          : interviewData?.results || []
-      );
-
-      setApplications(
-        Array.isArray(applicationData)
-          ? applicationData
-          : applicationData?.results || []
-      );
+      return true;
     } catch (err) {
       setError(
         `Impossible de charger les données. ${getErrorMessage(err)}`
       );
+
+      return false;
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -130,12 +162,28 @@ export default function RecruiterInterviews() {
     loadData();
   }, [loadData]);
 
+  // =====================================================
+  // CANDIDATURES AUTORISÉES POUR LA PROGRAMMATION
+  // =====================================================
+
+  const eligibleApplications = useMemo(() => {
+    return applications.filter(
+      (application) =>
+        !["REJECTED", "WITHDRAWN"].includes(application.status)
+    );
+  }, [applications]);
+
+  // =====================================================
+  // RECHERCHE ET FILTRAGE
+  // =====================================================
+
   const filteredInterviews = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
     return interviews.filter((interview) => {
       const matchesStatus =
-        statusFilter === "ALL" || interview.status === statusFilter;
+        statusFilter === "ALL" ||
+        interview.status === statusFilter;
 
       const searchableText = [
         interview.candidate_name,
@@ -150,35 +198,59 @@ export default function RecruiterInterviews() {
 
       return (
         matchesStatus &&
-        (!normalizedSearch || searchableText.includes(normalizedSearch))
+        (!normalizedSearch ||
+          searchableText.includes(normalizedSearch))
       );
     });
   }, [interviews, search, statusFilter]);
+
+  // =====================================================
+  // STATISTIQUES
+  // =====================================================
 
   const stats = useMemo(() => {
     const now = Date.now();
 
     return {
       total: interviews.length,
+
       scheduled: interviews.filter(
         (item) => item.status === "SCHEDULED"
       ).length,
-      upcoming: interviews.filter(
-        (item) =>
-          item.status === "SCHEDULED" &&
-          new Date(item.scheduled_at).getTime() >= now
-      ).length,
+
+      upcoming: interviews.filter((item) => {
+        if (item.status !== "SCHEDULED") return false;
+
+        const date = new Date(item.scheduled_at).getTime();
+
+        return Number.isFinite(date) && date >= now;
+      }).length,
+
       completed: interviews.filter(
         (item) => item.status === "COMPLETED"
       ).length,
     };
   }, [interviews]);
 
+  // =====================================================
+  // GESTION DE LA FENÊTRE MODALE
+  // =====================================================
+
+  function closeModal() {
+    if (saving) return;
+
+    setModalOpen(false);
+    setFormError("");
+  }
+
   function openCreateModal() {
     setEditingInterview(null);
     setForm({ ...EMPTY_FORM });
+
+    setFormError("");
     setError("");
     setSuccess("");
+
     setModalOpen(true);
   }
 
@@ -195,8 +267,10 @@ export default function RecruiterInterviews() {
       status: interview.status || "SCHEDULED",
     });
 
+    setFormError("");
     setError("");
     setSuccess("");
+
     setModalOpen(true);
   }
 
@@ -209,56 +283,119 @@ export default function RecruiterInterviews() {
     }));
   }
 
+  // =====================================================
+  // PROGRAMMER OU MODIFIER UN ENTRETIEN
+  // =====================================================
+
   async function handleSubmit(event) {
     event.preventDefault();
 
+    if (saving || actionId !== null) return;
+
+    setFormError("");
     setError("");
     setSuccess("");
 
-    // 1. Vérifier la validité de la date
-    if (
-      !form.scheduled_at ||
-      Number.isNaN(new Date(form.scheduled_at).getTime())
-    ) {
-      setError("Veuillez saisir une date et une heure valides.");
+    // Vérification de la date
+    if (!form.scheduled_at) {
+      setFormError("Veuillez saisir une date et une heure.");
       return;
     }
 
-    // 2. Refuser les dates passées lors d'une nouvelle programmation
-    // ou d'un report vers une nouvelle date.
     const scheduledDate = new Date(form.scheduled_at);
+
+    if (Number.isNaN(scheduledDate.getTime())) {
+      setFormError("Veuillez saisir une date et une heure valides.");
+      return;
+    }
+
+    // Empêcher une nouvelle programmation dans le passé.
+    // Une date déjà enregistrée peut être conservée lors d'une modification.
+    const previousDate = editingInterview?.scheduled_at
+      ? new Date(editingInterview.scheduled_at).getTime()
+      : null;
+
+    const isUnchangedDate =
+      previousDate !== null &&
+      Number.isFinite(previousDate) &&
+      scheduledDate.getTime() === previousDate;
 
     if (
       scheduledDate.getTime() < Date.now() &&
-      (!editingInterview ||
-        scheduledDate.getTime() !==
-          new Date(editingInterview.scheduled_at).getTime())
+      !isUnchangedDate
     ) {
-      setError("La date de l'entretien ne peut pas être dans le passé.");
+      setFormError(
+        "La date de l'entretien ne peut pas être dans le passé."
+      );
       return;
     }
 
-    // 3. Vérifier le lieu pour un entretien en présentiel
+    // Vérification du type d'entretien
+    if (
+      !["ONLINE", "IN_PERSON", "PHONE"].includes(
+        form.interview_type
+      )
+    ) {
+      setFormError("Veuillez sélectionner un type d'entretien valide.");
+      return;
+    }
+
+    // Vérification du lieu pour un entretien présentiel
     if (
       form.interview_type === "IN_PERSON" &&
       !form.location.trim()
     ) {
-      setError("Le lieu est obligatoire pour un entretien en présentiel.");
+      setFormError(
+        "Le lieu est obligatoire pour un entretien en présentiel."
+      );
       return;
     }
 
-    // 4. Vérifier le lien pour un entretien en ligne
-    if (
-      form.interview_type === "ONLINE" &&
-      !form.meeting_link.trim()
-    ) {
-      setError("Le lien de visioconférence est obligatoire.");
-      return;
+    // Vérification du lien pour un entretien en ligne
+    if (form.interview_type === "ONLINE") {
+      if (!form.meeting_link.trim()) {
+        setFormError(
+          "Le lien de visioconférence est obligatoire."
+        );
+        return;
+      }
+
+      if (!isValidHttpUrl(form.meeting_link)) {
+        setFormError(
+          "Veuillez saisir un lien de visioconférence valide commençant par http:// ou https://."
+        );
+        return;
+      }
     }
 
-    // 5. Vérifier la candidature lors d'une création
+    // Vérification de la candidature
     if (!editingInterview && !form.application) {
-      setError("Veuillez sélectionner une candidature.");
+      setFormError("Veuillez sélectionner une candidature.");
+      return;
+    }
+
+    if (
+      !editingInterview &&
+      !eligibleApplications.some(
+        (application) =>
+          String(application.id) === String(form.application)
+      )
+    ) {
+      setFormError(
+        "La candidature sélectionnée n'est plus disponible."
+      );
+      return;
+    }
+
+    // Vérification du statut lors d'une modification
+    if (
+      editingInterview &&
+      !Object.prototype.hasOwnProperty.call(
+        STATUS_LABELS,
+        form.status
+      )
+    ) {
+      setFormError("Veuillez sélectionner un statut valide.");
       return;
     }
 
@@ -286,26 +423,43 @@ export default function RecruiterInterviews() {
         await api.post("interviews/recruiter/", payload);
       }
 
-      // Fermer le formulaire après la réussite de l'opération
+      // L'enregistrement serveur est réussi.
       setModalOpen(false);
+      setFormError("");
 
-      // Actualiser les données avant d'afficher le succès
-      await loadData();
+      // Actualiser sans faire disparaître le tableau.
+      const refreshed = await loadData({
+        showLoading: false,
+      });
 
-      setSuccess(
-        editingInterview
-          ? "Entretien modifié avec succès. Le candidat sera notifié si les informations ont changé."
-          : "Entretien programmé avec succès. Le candidat sera notifié."
-      );
+      if (refreshed) {
+        setSuccess(
+          editingInterview
+            ? "Entretien modifié avec succès. Le candidat sera notifié si les notifications sont configurées côté serveur."
+            : "Entretien programmé avec succès. Le candidat sera notifié si les notifications sont configurées côté serveur."
+        );
+      } else {
+        setSuccess(
+          "L'opération a bien été enregistrée, mais l'actualisation des données a échoué. Utilisez le bouton Actualiser."
+        );
+      }
     } catch (err) {
-      setError(getErrorMessage(err));
+      setFormError(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
   }
 
+  // =====================================================
+  // MODIFIER LE STATUT D'UN ENTRETIEN
+  // =====================================================
+
   async function changeStatus(interview, nextStatus) {
+    if (saving || actionId !== null) return;
+
     const label = STATUS_LABELS[nextStatus];
+
+    if (!label) return;
 
     if (
       !window.confirm(
@@ -320,15 +474,26 @@ export default function RecruiterInterviews() {
     setSuccess("");
 
     try {
-      await api.patch(`interviews/recruiter/${interview.id}/`, {
-        status: nextStatus,
+      await api.patch(
+        `interviews/recruiter/${interview.id}/`,
+        {
+          status: nextStatus,
+        }
+      );
+
+      const refreshed = await loadData({
+        showLoading: false,
       });
 
-      await loadData();
-
-      setSuccess(
-        `Statut mis à jour : ${label}. Le candidat sera notifié si la notification est configurée côté serveur.`
-      );
+      if (refreshed) {
+        setSuccess(
+          `Statut mis à jour : ${label}. Le candidat sera notifié si les notifications sont configurées côté serveur.`
+        );
+      } else {
+        setSuccess(
+          `Le statut a bien été enregistré (${label}), mais l'actualisation a échoué. Utilisez le bouton Actualiser.`
+        );
+      }
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -336,7 +501,13 @@ export default function RecruiterInterviews() {
     }
   }
 
+  // =====================================================
+  // SUPPRIMER UN ENTRETIEN
+  // =====================================================
+
   async function deleteInterview(interview) {
+    if (saving || actionId !== null) return;
+
     if (
       !window.confirm(
         "Supprimer définitivement cet entretien ? Cette action ne peut pas être annulée."
@@ -350,11 +521,21 @@ export default function RecruiterInterviews() {
     setSuccess("");
 
     try {
-      await api.delete(`interviews/recruiter/${interview.id}/`);
+      await api.delete(
+        `interviews/recruiter/${interview.id}/`
+      );
 
-      await loadData();
+      const refreshed = await loadData({
+        showLoading: false,
+      });
 
-      setSuccess("Entretien supprimé.");
+      if (refreshed) {
+        setSuccess("Entretien supprimé avec succès.");
+      } else {
+        setSuccess(
+          "L'entretien a bien été supprimé, mais l'actualisation a échoué. Utilisez le bouton Actualiser."
+        );
+      }
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -362,12 +543,18 @@ export default function RecruiterInterviews() {
     }
   }
 
+  // =====================================================
+  // AFFICHAGE
+  // =====================================================
+
   return (
     <main className="ri-page">
       <section className="ri-hero">
         <div className="ri-hero-content">
           <span className="ri-eyebrow">ESPACE RECRUTEUR</span>
+
           <h1>Gestion des entretiens</h1>
+
           <p>
             Organisez vos rendez-vous, suivez les entretiens et accompagnez
             chaque candidat jusqu'à la prochaine étape du recrutement.
@@ -388,15 +575,18 @@ export default function RecruiterInterviews() {
             type="button"
             className="ri-primary-button"
             onClick={openCreateModal}
+            disabled={saving || actionId !== null}
           >
-            <span aria-hidden="true">＋</span> Programmer un entretien
+            <span aria-hidden="true">＋</span>
+            Programmer un entretien
           </button>
         </div>
       </section>
 
-      {error && (
+      {error && !modalOpen && (
         <div className="ri-alert ri-alert-error" role="alert">
           <span>{error}</span>
+
           <button
             type="button"
             onClick={() => setError("")}
@@ -410,6 +600,7 @@ export default function RecruiterInterviews() {
       {success && (
         <div className="ri-alert ri-alert-success" role="status">
           <span>{success}</span>
+
           <button
             type="button"
             onClick={() => setSuccess("")}
@@ -420,49 +611,70 @@ export default function RecruiterInterviews() {
         </div>
       )}
 
+      {/* STATISTIQUES */}
+
       <section className="ri-stats">
         <article className="ri-stat-card">
           <div className="ri-stat-icon ri-icon-purple">▤</div>
+
           <div>
-            <span className="ri-stat-label">Total des entretiens</span>
+            <span className="ri-stat-label">
+              Total des entretiens
+            </span>
+
             <strong>{stats.total}</strong>
+
             <small>Tous les entretiens enregistrés</small>
           </div>
         </article>
 
         <article className="ri-stat-card">
           <div className="ri-stat-icon ri-icon-blue">◷</div>
+
           <div>
             <span className="ri-stat-label">Programmés</span>
+
             <strong>{stats.scheduled}</strong>
+
             <small>Entretiens en cours de planification</small>
           </div>
         </article>
 
         <article className="ri-stat-card">
           <div className="ri-stat-icon ri-icon-orange">↗</div>
+
           <div>
             <span className="ri-stat-label">À venir</span>
+
             <strong>{stats.upcoming}</strong>
+
             <small>Rendez-vous futurs</small>
           </div>
         </article>
 
         <article className="ri-stat-card">
           <div className="ri-stat-icon ri-icon-green">✓</div>
+
           <div>
             <span className="ri-stat-label">Terminés</span>
+
             <strong>{stats.completed}</strong>
+
             <small>Entretiens réalisés</small>
           </div>
         </article>
       </section>
 
+      {/* LISTE DES ENTRETIENS */}
+
       <section className="ri-panel">
         <div className="ri-panel-heading">
           <div>
             <h2>Vos entretiens</h2>
-            <p>Consultez et gérez les rendez-vous avec les candidats.</p>
+
+            <p>
+              Consultez et gérez les rendez-vous avec les candidats.
+            </p>
           </div>
 
           <span className="ri-result-count">
@@ -473,6 +685,7 @@ export default function RecruiterInterviews() {
         <div className="ri-toolbar">
           <label className="ri-search">
             <span aria-hidden="true">⌕</span>
+
             <input
               type="search"
               placeholder="Rechercher un candidat, un poste..."
@@ -497,8 +710,8 @@ export default function RecruiterInterviews() {
           <button
             type="button"
             className="ri-refresh-button"
-            onClick={loadData}
-            disabled={loading}
+            onClick={() => loadData()}
+            disabled={loading || saving || actionId !== null}
             title="Actualiser les données"
           >
             ↻ Actualiser
@@ -531,6 +744,7 @@ export default function RecruiterInterviews() {
                 type="button"
                 className="ri-primary-button"
                 onClick={openCreateModal}
+                disabled={saving || actionId !== null}
               >
                 Programmer un entretien
               </button>
@@ -551,144 +765,166 @@ export default function RecruiterInterviews() {
               </thead>
 
               <tbody>
-                {filteredInterviews.map((interview) => (
-                  <tr key={interview.id}>
-                    <td>
-                      <div className="ri-candidate">
-                        <div className="ri-avatar">
-                          {(interview.candidate_name || "C")
-                            .trim()
-                            .charAt(0)
-                            .toUpperCase()}
-                        </div>
+                {filteredInterviews.map((interview) => {
+                  const safeMeetingLink = isValidHttpUrl(
+                    interview.meeting_link
+                  )
+                    ? interview.meeting_link.trim()
+                    : "";
 
-                        <div className="ri-candidate-info">
+                  const isBusy =
+                    actionId === interview.id || saving;
+
+                  return (
+                    <tr key={interview.id}>
+                      <td>
+                        <div className="ri-candidate">
+                          <div className="ri-avatar">
+                            {(interview.candidate_name || "C")
+                              .trim()
+                              .charAt(0)
+                              .toUpperCase()}
+                          </div>
+
+                          <div className="ri-candidate-info">
+                            <strong>
+                              {interview.candidate_name || "Candidat"}
+                            </strong>
+
+                            <span>
+                              {interview.candidate_email || "—"}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td>
+                        <div className="ri-job-info">
                           <strong>
-                            {interview.candidate_name || "Candidat"}
+                            {interview.job_title || "Poste non précisé"}
                           </strong>
-                          <span>{interview.candidate_email || "—"}</span>
+
+                          <span>
+                            {interview.company_name || "Entreprise"}
+                          </span>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td>
-                      <div className="ri-job-info">
-                        <strong>
-                          {interview.job_title || "Poste non précisé"}
-                        </strong>
-                        <span>{interview.company_name || "Entreprise"}</span>
-                      </div>
-                    </td>
+                      <td>
+                        <div className="ri-date">
+                          <strong>
+                            {formatDate(interview.scheduled_at)}
+                          </strong>
 
-                    <td>
-                      <div className="ri-date">
-                        <strong>{formatDate(interview.scheduled_at)}</strong>
+                          {interview.location && (
+                            <span>⌖ {interview.location}</span>
+                          )}
 
-                        {interview.location && (
-                          <span>⌖ {interview.location}</span>
-                        )}
+                          {safeMeetingLink && (
+                            <a
+                              href={safeMeetingLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Rejoindre la réunion ↗
+                            </a>
+                          )}
+                        </div>
+                      </td>
 
-                        {interview.meeting_link && (
-                          <a
-                            href={interview.meeting_link}
-                            target="_blank"
-                            rel="noreferrer"
+                      <td>
+                        <span className="ri-type">
+                          {TYPE_LABELS[interview.interview_type] ||
+                            "Autre"}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span
+                          className={`ri-status ri-status-${(
+                            interview.status || "SCHEDULED"
+                          ).toLowerCase()}`}
+                        >
+                          {STATUS_LABELS[interview.status] ||
+                            interview.status ||
+                            "Non défini"}
+                        </span>
+                      </td>
+
+                      <td>
+                        <div className="ri-actions">
+                          <button
+                            type="button"
+                            className="ri-action-button"
+                            onClick={() => openEditModal(interview)}
+                            disabled={isBusy}
+                            title="Modifier"
+                            aria-label="Modifier l'entretien"
                           >
-                            Rejoindre la réunion ↗
-                          </a>
-                        )}
-                      </div>
-                    </td>
+                            ✎
+                          </button>
 
-                    <td>
-                      <span className="ri-type">
-                        {TYPE_LABELS[interview.interview_type] || "Autre"}
-                      </span>
-                    </td>
+                          {["SCHEDULED", "RESCHEDULED"].includes(
+                            interview.status
+                          ) && (
+                            <>
+                              <button
+                                type="button"
+                                className="ri-action-button ri-action-done"
+                                onClick={() =>
+                                  changeStatus(interview, "COMPLETED")
+                                }
+                                disabled={isBusy}
+                                title="Marquer comme terminé"
+                                aria-label="Marquer comme terminé"
+                              >
+                                ✓
+                              </button>
 
-                    <td>
-                      <span
-                        className={`ri-status ri-status-${(
-                          interview.status || "SCHEDULED"
-                        ).toLowerCase()}`}
-                      >
-                        {STATUS_LABELS[interview.status] ||
-                          interview.status ||
-                          "Non défini"}
-                      </span>
-                    </td>
+                              <button
+                                type="button"
+                                className="ri-action-button ri-action-cancel"
+                                onClick={() =>
+                                  changeStatus(interview, "CANCELLED")
+                                }
+                                disabled={isBusy}
+                                title="Annuler l'entretien"
+                                aria-label="Annuler l'entretien"
+                              >
+                                ×
+                              </button>
+                            </>
+                          )}
 
-                    <td>
-                      <div className="ri-actions">
-                        <button
-                          type="button"
-                          className="ri-action-button"
-                          onClick={() => openEditModal(interview)}
-                          disabled={actionId === interview.id}
-                          title="Modifier"
-                          aria-label="Modifier l'entretien"
-                        >
-                          ✎
-                        </button>
-
-                        {["SCHEDULED", "RESCHEDULED"].includes(
-                          interview.status
-                        ) && (
-                          <>
-                            <button
-                              type="button"
-                              className="ri-action-button ri-action-done"
-                              onClick={() =>
-                                changeStatus(interview, "COMPLETED")
-                              }
-                              disabled={actionId === interview.id}
-                              title="Marquer comme terminé"
-                              aria-label="Marquer comme terminé"
-                            >
-                              ✓
-                            </button>
-
-                            <button
-                              type="button"
-                              className="ri-action-button ri-action-cancel"
-                              onClick={() =>
-                                changeStatus(interview, "CANCELLED")
-                              }
-                              disabled={actionId === interview.id}
-                              title="Annuler l'entretien"
-                              aria-label="Annuler l'entretien"
-                            >
-                              ×
-                            </button>
-                          </>
-                        )}
-
-                        <button
-                          type="button"
-                          className="ri-action-button ri-action-delete"
-                          onClick={() => deleteInterview(interview)}
-                          disabled={actionId === interview.id}
-                          title="Supprimer"
-                          aria-label="Supprimer l'entretien"
-                        >
-                          ⌫
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <button
+                            type="button"
+                            className="ri-action-button ri-action-delete"
+                            onClick={() => deleteInterview(interview)}
+                            disabled={isBusy}
+                            title="Supprimer"
+                            aria-label="Supprimer l'entretien"
+                          >
+                            ⌫
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </section>
 
+      {/* FENÊTRE MODALE */}
+
       {modalOpen && (
         <div
           className="ri-modal-backdrop"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !saving) {
-              setModalOpen(false);
+            if (event.target === event.currentTarget) {
+              closeModal();
             }
           }}
         >
@@ -705,7 +941,7 @@ export default function RecruiterInterviews() {
                     type="button"
                     className="ri-back-dashboard ri-modal-back-dashboard"
                     onClick={() => {
-                      setModalOpen(false);
+                      closeModal();
                       navigate("/recruiter/dashboard");
                     }}
                     disabled={saving}
@@ -733,7 +969,7 @@ export default function RecruiterInterviews() {
               <button
                 type="button"
                 className="ri-modal-close"
-                onClick={() => setModalOpen(false)}
+                onClick={closeModal}
                 disabled={saving}
                 aria-label="Fermer la fenêtre"
               >
@@ -753,37 +989,34 @@ export default function RecruiterInterviews() {
                     value={form.application}
                     onChange={updateField}
                     required
+                    disabled={saving}
                   >
-                    <option value="">Sélectionner une candidature</option>
+                    <option value="">
+                      Sélectionner une candidature
+                    </option>
 
-                    {applications
-                      .filter(
-                        (application) =>
-                          !["REJECTED", "WITHDRAWN"].includes(
-                            application.status
-                          )
-                      )
-                      .map((application) => (
-                        <option
-                          key={application.id}
-                          value={application.id}
-                        >
-                          {(application.candidate_name ||
-                            application.candidate_email ||
-                            application.candidate ||
-                            `Candidature #${application.id}`) +
-                            " — " +
-                            (application.job_title ||
-                              application.job?.title ||
-                              "Poste")}
-                        </option>
-                      ))}
+                    {eligibleApplications.map((application) => (
+                      <option
+                        key={application.id}
+                        value={application.id}
+                      >
+                        {(application.candidate_name ||
+                          application.candidate_email ||
+                          application.candidate ||
+                          `Candidature #${application.id}`) +
+                          " — " +
+                          (application.job_title ||
+                            application.job?.title ||
+                            "Poste")}
+                      </option>
+                    ))}
                   </select>
 
-                  {applications.length === 0 && (
+                  {eligibleApplications.length === 0 && (
                     <small>
-                      Aucune candidature chargée. Vérifiez l'API des
-                      candidatures reçues.
+                      Aucune candidature disponible pour programmer
+                      un entretien. Vérifiez les candidatures reçues
+                      et leurs statuts.
                     </small>
                   )}
                 </label>
@@ -799,6 +1032,7 @@ export default function RecruiterInterviews() {
                   value={form.interview_type}
                   onChange={updateField}
                   required
+                  disabled={saving}
                 >
                   <option value="ONLINE">En ligne</option>
                   <option value="IN_PERSON">Présentiel</option>
@@ -817,6 +1051,7 @@ export default function RecruiterInterviews() {
                   value={form.scheduled_at}
                   onChange={updateField}
                   required
+                  disabled={saving}
                 />
               </label>
 
@@ -832,6 +1067,7 @@ export default function RecruiterInterviews() {
                     onChange={updateField}
                     placeholder="Ex. : Dakar, VDN, siège de l'entreprise"
                     required
+                    disabled={saving}
                   />
                 </label>
               )}
@@ -849,6 +1085,7 @@ export default function RecruiterInterviews() {
                     onChange={updateField}
                     placeholder="https://meet.google.com/..."
                     required
+                    disabled={saving}
                   />
                 </label>
               )}
@@ -861,6 +1098,7 @@ export default function RecruiterInterviews() {
                     name="status"
                     value={form.status}
                     onChange={updateField}
+                    disabled={saving}
                   >
                     <option value="SCHEDULED">Programmé</option>
                     <option value="RESCHEDULED">Reporté</option>
@@ -879,14 +1117,33 @@ export default function RecruiterInterviews() {
                   onChange={updateField}
                   rows={4}
                   placeholder="Précisez les documents à apporter, les consignes ou les informations utiles..."
+                  disabled={saving}
                 />
               </label>
 
               <div className="ri-form-note ri-field-full">
                 <span>ⓘ</span>
-                Le candidat sera notifié si le système de notifications est
-                correctement configuré côté serveur.
+
+                Le candidat sera notifié si le système de notifications
+                est correctement configuré côté serveur.
               </div>
+
+              {formError && (
+                <div
+                  className="ri-alert ri-alert-error ri-field-full"
+                  role="alert"
+                >
+                  <span>{formError}</span>
+
+                  <button
+                    type="button"
+                    onClick={() => setFormError("")}
+                    aria-label="Fermer"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
 
               {error && (
                 <div
@@ -894,6 +1151,7 @@ export default function RecruiterInterviews() {
                   role="alert"
                 >
                   <span>{error}</span>
+
                   <button
                     type="button"
                     onClick={() => setError("")}
@@ -908,7 +1166,7 @@ export default function RecruiterInterviews() {
                 <button
                   type="button"
                   className="ri-secondary-button"
-                  onClick={() => setModalOpen(false)}
+                  onClick={closeModal}
                   disabled={saving}
                 >
                   Annuler
@@ -917,7 +1175,12 @@ export default function RecruiterInterviews() {
                 <button
                   type="submit"
                   className="ri-primary-button"
-                  disabled={saving}
+                  disabled={
+                    saving ||
+                    actionId !== null ||
+                    (!editingInterview &&
+                      eligibleApplications.length === 0)
+                  }
                 >
                   {saving
                     ? "Enregistrement..."
