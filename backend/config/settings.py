@@ -138,6 +138,7 @@ MIDDLEWARE = [
     # Fichiers statiques en production
     "whitenoise.middleware.WhiteNoiseMiddleware",
 
+    # CORS doit être placé avant CommonMiddleware
     "corsheaders.middleware.CorsMiddleware",
 
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -290,28 +291,38 @@ STORAGES = {
 # CORS - FRONTEND REACT / VITE
 # =====================================================
 
-CORS_ALLOWED_ORIGINS = env_list(
-    "CORS_ALLOWED_ORIGINS",
-    default=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:4173",
-        "http://127.0.0.1:4173",
-    ] if DEBUG else [],
+FRONTEND_PRODUCTION_ORIGIN = (
+    "https://sunujob-ai-frontend.onrender.com"
 )
+
+CORS_ALLOWED_ORIGINS = list(dict.fromkeys(
+    env_list(
+        "CORS_ALLOWED_ORIGINS",
+        default=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:4173",
+            "http://127.0.0.1:4173",
+        ] if DEBUG else [],
+    )
+    + [FRONTEND_PRODUCTION_ORIGIN]
+))
 
 
 # =====================================================
 # CSRF
 # =====================================================
 
-CSRF_TRUSTED_ORIGINS = env_list(
-    "CSRF_TRUSTED_ORIGINS",
-    default=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ] if DEBUG else [],
-)
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(
+    env_list(
+        "CSRF_TRUSTED_ORIGINS",
+        default=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ] if DEBUG else [],
+    )
+    + [FRONTEND_PRODUCTION_ORIGIN]
+))
 
 
 # =====================================================
