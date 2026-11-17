@@ -131,8 +131,9 @@ class CVAnalysis(models.Model):
 
     candidate = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="cv_analyses",
+        verbose_name="Candidat",
     )
 
     resume_name = models.CharField(max_length=255)

@@ -7,6 +7,7 @@ from .models import CoachingQuestion, CoachingSession
 class CoachingQuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoachingQuestion
+
         fields = [
             "id",
             "question_text",
@@ -34,7 +35,10 @@ class CoachingQuestionSerializer(serializers.ModelSerializer):
 
 
 class CoachingSessionSerializer(serializers.ModelSerializer):
-    questions = CoachingQuestionSerializer(many=True, read_only=True)
+    questions = CoachingQuestionSerializer(
+        many=True,
+        read_only=True,
+    )
 
     interview_type_label = serializers.CharField(
         source="get_interview_type_display",
@@ -81,7 +85,19 @@ class CoachingSessionSerializer(serializers.ModelSerializer):
                 "Veuillez préciser le poste que vous souhaitez préparer."
             )
 
+        if len(value) > 200:
+            raise serializers.ValidationError(
+                "Le nom du poste ne doit pas dépasser 200 caractères."
+            )
+
         return value
 
     def validate_experience_level(self, value):
-        return value.strip()
+        value = value.strip()
+
+        if len(value) > 100:
+            raise serializers.ValidationError(
+                "Le niveau d'expérience ne doit pas dépasser 100 caractères."
+            )
+
+        return value

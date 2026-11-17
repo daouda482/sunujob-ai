@@ -1,3 +1,4 @@
+
 from django.conf import settings
 from django.db import models
 
@@ -13,7 +14,9 @@ class Notification(models.Model):
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="notifications",
         verbose_name="Destinataire",
     )
@@ -56,4 +59,4 @@ class Notification(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.title} - {self.recipient.email}"
+        return f"{self.title} - {self.recipient.email if self.recipient else 'Destinataire supprimé'}"

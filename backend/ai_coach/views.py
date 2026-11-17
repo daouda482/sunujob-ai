@@ -24,6 +24,14 @@ from .services import (
 logger = logging.getLogger(__name__)
 
 
+class InvalidAIResponseError(Exception):
+    """
+    Exception utilisée lorsque le moteur IA répond,
+    mais retourne des données invalides ou inexploitable.
+    """
+    pass
+
+
 def get_mode():
     return "DEMO" if DEMO_MODE else "OLLAMA"
 
@@ -156,20 +164,16 @@ class GenerateQuestionsView(APIView):
                 experience_level=session.experience_level,
             )
 
-            if not questions:
+            # Vérifier que le moteur IA retourne une liste.
+            if not isinstance(questions, list) or not questions:
 
-                return Response(
-                    {
-                        "success": False,
-                        "detail": "Aucune question n'a été générée.",
-                    },
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                raise InvalidAIResponseError(
+                    "Le moteur IA n'a retourné aucune question exploitable."
                 )
 
-            # Vérifier les questions générées.
             valid_questions = []
 
-            for index, item in enumerate(questions, start=1):
+            for item in questions:
 
                 if not isinstance(item, dict):
                     continue
@@ -184,10 +188,9 @@ class GenerateQuestionsView(APIView):
                 if not question_text:
                     continue
 
-                position = item.get("position", index)
-
-                if not isinstance(position, int) or position < 1:
-                    position = index
+                # Réattribuer les positions pour garantir
+                # une numérotation cohérente et unique.
+                position = len(valid_questions) + 1
 
                 valid_questions.append(
                     CoachingQuestion(
@@ -197,16 +200,22 @@ class GenerateQuestionsView(APIView):
                     )
                 )
 
+            # Aucune question exploitable : réponse IA invalide.
             if not valid_questions:
 
                 return Response(
                     {
                         "success": False,
-                        "detail": "Le moteur IA n'a retourné aucune question valide.",
+                        "detail": (
+                            "Le moteur IA a retourné une réponse invalide : "
+                            "aucune question exploitable n'a été trouvée."
+                        ),
+                        "mode": get_mode(),
                     },
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    status=status.HTTP_502_BAD_GATEWAY,
                 )
 
+            # Enregistrer les questions dans une transaction.
             with transaction.atomic():
 
                 CoachingQuestion.objects.bulk_create(
@@ -224,6 +233,22 @@ class GenerateQuestionsView(APIView):
                     "session": CoachingSessionSerializer(session).data,
                 },
                 status=status.HTTP_201_CREATED,
+            )
+
+        except InvalidAIResponseError as exc:
+
+            logger.warning(
+                "Réponse invalide du moteur IA pendant la génération : %s",
+                exc,
+            )
+
+            return Response(
+                {
+                    "success": False,
+                    "detail": str(exc),
+                    "mode": get_mode(),
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
             )
 
         except AICoachError as exc:
@@ -299,7 +324,9 @@ class SubmitAnswerView(APIView):
             return Response(
                 {
                     "success": False,
-                    "detail": "Veuillez saisir une réponse avant de continuer.",
+                    "detail": (
+                        "Veuillez saisir une réponse avant de continuer."
+                    ),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -311,7 +338,10 @@ class SubmitAnswerView(APIView):
             return Response(
                 {
                     "success": False,
-                    "detail": "Votre réponse ne doit pas dépasser 10 000 caractères.",
+                    "detail": (
+                        "Votre réponse ne doit pas dépasser "
+                        "10 000 caractères."
+                    ),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -325,7 +355,8 @@ class SubmitAnswerView(APIView):
             )
 
             if not isinstance(evaluation, dict):
-                raise AICoachError(
+
+                raise InvalidAIResponseError(
                     "Le moteur IA a retourné un résultat invalide."
                 )
 
@@ -333,7 +364,8 @@ class SubmitAnswerView(APIView):
             score = evaluation.get("score")
 
             if not isinstance(feedback, str) or not feedback.strip():
-                raise AICoachError(
+
+                raise InvalidAIResponseError(
                     "Le moteur IA n'a pas retourné de commentaire valide."
                 )
 
@@ -342,7 +374,8 @@ class SubmitAnswerView(APIView):
                 or isinstance(score, bool)
                 or not 0 <= score <= 100
             ):
-                raise AICoachError(
+
+                raise InvalidAIResponseError(
                     "Le score retourné par le moteur IA est invalide."
                 )
 
@@ -372,7 +405,7 @@ class SubmitAnswerView(APIView):
                 if isinstance(item, str) and item.strip()
             ]
 
-            # Sauvegarder tous les résultats dans la base de données.
+            # Sauvegarder les résultats de l'évaluation.
             question.candidate_answer = answer
             question.ai_feedback = feedback.strip()
             question.score = score
@@ -394,7 +427,9 @@ class SubmitAnswerView(APIView):
             return Response(
                 {
                     "success": True,
-                    "detail": "Votre réponse a été analysée avec succès.",
+                    "detail": (
+                        "Votre réponse a été analysée avec succès."
+                    ),
                     "question_id": question.id,
                     "answer": question.candidate_answer,
                     "feedback": question.ai_feedback,
@@ -405,6 +440,22 @@ class SubmitAnswerView(APIView):
                     "mode": evaluation.get("mode", get_mode()),
                 },
                 status=status.HTTP_200_OK,
+            )
+
+        except InvalidAIResponseError as exc:
+
+            logger.warning(
+                "Réponse invalide du moteur IA pendant l'évaluation : %s",
+                exc,
+            )
+
+            return Response(
+                {
+                    "success": False,
+                    "detail": str(exc),
+                    "mode": get_mode(),
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
             )
 
         except AICoachError as exc:
@@ -421,16 +472,6 @@ class SubmitAnswerView(APIView):
                     "mode": get_mode(),
                 },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-
-        except ValueError as exc:
-
-            return Response(
-                {
-                    "success": False,
-                    "detail": str(exc),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
             )
 
         except Exception:
@@ -486,7 +527,9 @@ class CompleteSessionView(APIView):
             return Response(
                 {
                     "success": False,
-                    "detail": "Générez d'abord les questions de cette séance.",
+                    "detail": (
+                        "Générez d'abord les questions de cette séance."
+                    ),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -502,7 +545,9 @@ class CompleteSessionView(APIView):
             return Response(
                 {
                     "success": False,
-                    "detail": "Répondez à toutes les questions avant de terminer.",
+                    "detail": (
+                        "Répondez à toutes les questions avant de terminer."
+                    ),
                     "unanswered_positions": unanswered,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -540,13 +585,14 @@ class CompleteSessionView(APIView):
             return Response(
                 {
                     "success": False,
-                    "detail": "Aucun score disponible pour terminer cette séance.",
+                    "detail": (
+                        "Aucun score disponible pour terminer cette séance."
+                    ),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         session.score = round(sum(scores) / len(scores))
-
         session.status = CoachingSession.Status.COMPLETED
 
         session.save(

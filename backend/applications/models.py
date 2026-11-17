@@ -18,14 +18,14 @@ class Application(models.Model):
 
     candidate = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="applications",
         verbose_name="Candidat",
     )
 
     job = models.ForeignKey(
         Job,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="applications",
         verbose_name="Offre d'emploi",
     )
@@ -71,7 +71,7 @@ class Application(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["candidate", "job"],
-                name="unique_candidate_job_application",
+                name="unique_candidate_job_application"
             )
         ]
 

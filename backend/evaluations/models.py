@@ -2,7 +2,6 @@
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
-from django.db.models import Avg
 
 
 class Evaluation(models.Model):
@@ -20,15 +19,13 @@ class Evaluation(models.Model):
         DRAFT = "DRAFT", "Brouillon"
         COMPLETED = "COMPLETED", "Terminée"
 
-    # Candidature évaluée
     application = models.ForeignKey(
         "applications.Application",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="evaluations",
         verbose_name="Candidature",
     )
 
-    # Entretien associé, facultatif
     interview = models.ForeignKey(
         "interviews.Interview",
         on_delete=models.SET_NULL,
@@ -38,7 +35,6 @@ class Evaluation(models.Model):
         verbose_name="Entretien associé",
     )
 
-    # Recruteur responsable de l'évaluation
     evaluator = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -47,7 +43,6 @@ class Evaluation(models.Model):
         verbose_name="Évaluateur",
     )
 
-    # Notes sur 5
     technical_score = models.PositiveSmallIntegerField(
         default=0,
         validators=[MinValueValidator(0), MaxValueValidator(5)],
@@ -78,7 +73,6 @@ class Evaluation(models.Model):
         verbose_name="Adaptabilité",
     )
 
-    # Appréciations du recruteur
     strengths = models.TextField(
         blank=True,
         verbose_name="Points forts",
@@ -136,9 +130,6 @@ class Evaluation(models.Model):
 
     @property
     def average_score(self):
-        """
-        Calcule la moyenne des cinq critères sur 5.
-        """
         scores = [
             self.technical_score,
             self.communication_score,
@@ -151,7 +142,4 @@ class Evaluation(models.Model):
 
     @property
     def percentage_score(self):
-        """
-        Convertit la moyenne sur 5 en pourcentage.
-        """
         return round((self.average_score / 5) * 100, 2)

@@ -1,3 +1,4 @@
+
 from rest_framework.permissions import BasePermission
 
 from users.models import User
@@ -24,7 +25,9 @@ class IsRecruiterOwner(BasePermission):
     de l'offre d'emploi concernée.
     """
 
-    message = "Vous ne pouvez pas gérer une offre qui ne vous appartient pas."
+    message = (
+        "Vous ne pouvez pas gérer une offre qui ne vous appartient pas."
+    )
 
     def has_object_permission(self, request, view, obj):
-        return obj.recruiter == request.user
+        return obj.recruiter_id == request.user.id

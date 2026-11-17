@@ -1,18 +1,21 @@
 
 """
 Django settings for SunuJob AI.
+Configuration locale SQLite et production PostgreSQL (Render).
 """
 
 import os
 from pathlib import Path
 from datetime import timedelta
 
+import dj_database_url
+
 from dotenv import load_dotenv
 from celery.schedules import crontab
 
 
 # =====================================================
-# CONFIGURATION DU PROJET
+# CONFIGURATION GÉNÉRALE
 # =====================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,25 +23,77 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 
+def env_bool(name, default=False):
+    """Convertit une variable d'environnement en booléen."""
+    value = os.getenv(name)
+
+    if value is None:
+        return default
+
+    return value.strip().lower() in ("true", "1", "yes", "on")
+
+
+def env_list(name, default=None):
+    """Lit une liste de valeurs séparées par des virgules."""
+    value = os.getenv(name)
+
+    if value is None:
+        return default or []
+
+    return [
+        item.strip()
+        for item in value.split(",")
+        if item.strip()
+    ]
+
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+DEBUG = env_bool(
+    "DEBUG",
+    default=not bool(DATABASE_URL),
+)
+
+IS_PRODUCTION = not DEBUG
+
+
 # =====================================================
 # SÉCURITÉ
 # =====================================================
 
-SECRET_KEY = os.getenv(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-7a59jpo0%^swb0@0lo)_&$+=_g90@049a=b$30@ah!r1ogni*_"
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+
+if not SECRET_KEY:
+    if IS_PRODUCTION:
+        raise RuntimeError(
+            "DJANGO_SECRET_KEY doit être configurée en production."
+        )
+
+    SECRET_KEY = (
+        "django-insecure-local-development-only-"
+        "sunujob-ai-change-before-production"
+    )
+
+
+ALLOWED_HOSTS = env_list(
+    "ALLOWED_HOSTS",
+    default=["localhost", "127.0.0.1"] if DEBUG else [],
 )
 
-DEBUG = True
+RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
 
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-]
+if RENDER_EXTERNAL_HOSTNAME:
+    if RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+if IS_PRODUCTION and not ALLOWED_HOSTS:
+    raise RuntimeError(
+        "ALLOWED_HOSTS doit être configuré en production."
+    )
 
 
 # =====================================================
-# APPLICATIONS DJANGO ET SUNUJOB AI
+# APPLICATIONS
 # =====================================================
 
 INSTALLED_APPS = [
@@ -79,18 +134,27 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+
+    # Fichiers statiques en production
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+
     "corsheaders.middleware.CorsMiddleware",
+
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+
     "users.audit_middleware.AdminAuditMiddleware",
+
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 
 ROOT_URLCONF = "config.urls"
+
+WSGI_APPLICATION = "config.wsgi.application"
 
 
 # =====================================================
@@ -114,23 +178,40 @@ TEMPLATES = [
 ]
 
 
-WSGI_APPLICATION = "config.wsgi.application"
-
-
 # =====================================================
-# BASE DE DONNÉES - SQLITE
+# BASE DE DONNÉES
+# SQLITE EN LOCAL / POSTGRESQL EN PRODUCTION
 # =====================================================
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+if DATABASE_URL:
+    DATABASES = {
+        "default": dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
+            ssl_require=IS_PRODUCTION,
+        )
     }
-}
+
+elif IS_PRODUCTION:
+    raise RuntimeError(
+        "DATABASE_URL doit être configurée pour PostgreSQL en production."
+    )
+
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+            "OPTIONS": {
+                "timeout": 20,
+            },
+        }
+    }
 
 
 # =====================================================
-# MODÈLE UTILISATEUR PERSONNALISÉ
+# MODÈLE UTILISATEUR
 # =====================================================
 
 AUTH_USER_MODEL = "users.User"
@@ -142,16 +223,28 @@ AUTH_USER_MODEL = "users.User"
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "UserAttributeSimilarityValidator"
+        ),
     },
     {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "MinimumLengthValidator"
+        ),
     },
     {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "CommonPasswordValidator"
+        ),
     },
     {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "NumericPasswordValidator"
+        ),
     },
 ]
 
@@ -173,36 +266,94 @@ USE_TZ = True
 # FICHIERS STATIQUES ET MÉDIAS
 # =====================================================
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "/media/"
 
 MEDIA_ROOT = BASE_DIR / "media"
 
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        ),
+    },
+}
+
 
 # =====================================================
-# CORS - FRONTEND REACT/VITE
+# CORS - FRONTEND REACT / VITE
 # =====================================================
 
-CORS_ALLOWED_ORIGINS = [
-    # Frontend développement
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-
-    # Frontend production preview
-    "http://localhost:4173",
-    "http://127.0.0.1:4173",
-]
+CORS_ALLOWED_ORIGINS = env_list(
+    "CORS_ALLOWED_ORIGINS",
+    default=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+    ] if DEBUG else [],
+)
 
 
 # =====================================================
 # CSRF
 # =====================================================
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+CSRF_TRUSTED_ORIGINS = env_list(
+    "CSRF_TRUSTED_ORIGINS",
+    default=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ] if DEBUG else [],
+)
+
+
+# =====================================================
+# SÉCURITÉ HTTPS - PRODUCTION
+# =====================================================
+
+SECURE_PROXY_SSL_HEADER = (
+    "HTTP_X_FORWARDED_PROTO",
+    "https",
+)
+
+SECURE_SSL_REDIRECT = env_bool(
+    "SECURE_SSL_REDIRECT",
+    default=IS_PRODUCTION,
+)
+
+SESSION_COOKIE_SECURE = IS_PRODUCTION
+
+CSRF_COOKIE_SECURE = IS_PRODUCTION
+
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+X_FRAME_OPTIONS = "DENY"
+
+SECURE_REFERRER_POLICY = "same-origin"
+
+SECURE_HSTS_SECONDS = int(
+    os.getenv(
+        "SECURE_HSTS_SECONDS",
+        "0",
+    )
+)
+
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
+    "SECURE_HSTS_INCLUDE_SUBDOMAINS",
+    False,
+)
+
+SECURE_HSTS_PRELOAD = env_bool(
+    "SECURE_HSTS_PRELOAD",
+    False,
+)
 
 
 # =====================================================
@@ -232,10 +383,12 @@ SIMPLE_JWT = {
 
 
 # =====================================================
-# CONFIGURATION DES FICHIERS CV
+# CONFIGURATION DES CV
 # =====================================================
 
-CV_MAX_FILE_SIZE_MB = 8
+CV_MAX_FILE_SIZE_MB = int(
+    os.getenv("CV_MAX_FILE_SIZE_MB", "8")
+)
 
 
 # =====================================================
@@ -244,12 +397,12 @@ CV_MAX_FILE_SIZE_MB = 8
 
 OLLAMA_BASE_URL = os.getenv(
     "OLLAMA_BASE_URL",
-    "http://127.0.0.1:11434"
+    "http://127.0.0.1:11434",
 ).rstrip("/")
 
 OLLAMA_MODEL = os.getenv(
     "OLLAMA_MODEL",
-    "qwen2.5:3b"
+    "qwen2.5:3b",
 )
 
 try:
@@ -264,31 +417,29 @@ if OLLAMA_TIMEOUT <= 0:
 
 
 # =====================================================
-# CONFIGURATION DE L'ANALYSE IA DES CV
+# ANALYSE IA DES CV
 # =====================================================
 
-CV_AI_OLLAMA_ENABLED = (
-    os.getenv(
-        "CV_AI_OLLAMA_ENABLED",
-        "false"
-    ).strip().lower() == "true"
+CV_AI_OLLAMA_ENABLED = env_bool(
+    "CV_AI_OLLAMA_ENABLED",
+    False,
 )
 
 CV_AI_OLLAMA_URL = os.getenv(
     "CV_AI_OLLAMA_URL",
-    f"{OLLAMA_BASE_URL}/api/generate"
+    f"{OLLAMA_BASE_URL}/api/generate",
 )
 
 CV_AI_OLLAMA_MODEL = os.getenv(
     "CV_AI_OLLAMA_MODEL",
-    OLLAMA_MODEL
+    OLLAMA_MODEL,
 )
 
 try:
     CV_AI_OLLAMA_TIMEOUT = int(
         os.getenv(
             "CV_AI_OLLAMA_TIMEOUT",
-            str(OLLAMA_TIMEOUT)
+            str(OLLAMA_TIMEOUT),
         )
     )
 except (TypeError, ValueError):
@@ -299,7 +450,7 @@ if CV_AI_OLLAMA_TIMEOUT <= 0:
 
 
 # =====================================================
-# CONFIGURATION DU COACH IA
+# COACH IA
 # =====================================================
 
 AI_COACH_OLLAMA_URL = CV_AI_OLLAMA_URL
@@ -310,88 +461,109 @@ AI_COACH_OLLAMA_TIMEOUT = CV_AI_OLLAMA_TIMEOUT
 
 
 # =====================================================
-# CONFIGURATION EMAIL SMTP - SUNUJOB AI
+# EMAIL SMTP
 # =====================================================
 
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
-    "django.core.mail.backends.smtp.EmailBackend"
+    "django.core.mail.backends.smtp.EmailBackend",
 )
 
 EMAIL_HOST = os.getenv(
     "EMAIL_HOST",
-    "smtp.gmail.com"
+    "smtp.gmail.com",
 )
 
-EMAIL_PORT = int(
-    os.getenv("EMAIL_PORT", "587")
+try:
+    EMAIL_PORT = int(
+        os.getenv("EMAIL_PORT", "587")
+    )
+except (TypeError, ValueError):
+    EMAIL_PORT = 587
+
+EMAIL_USE_TLS = env_bool(
+    "EMAIL_USE_TLS",
+    True,
 )
 
-EMAIL_USE_TLS = (
-    os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
-)
-
-EMAIL_USE_SSL = (
-    os.getenv("EMAIL_USE_SSL", "False").lower() == "true"
+EMAIL_USE_SSL = env_bool(
+    "EMAIL_USE_SSL",
+    False,
 )
 
 EMAIL_HOST_USER = os.getenv(
     "EMAIL_HOST_USER",
-    ""
+    "",
 )
 
 EMAIL_HOST_PASSWORD = os.getenv(
     "EMAIL_HOST_PASSWORD",
-    ""
+    "",
 )
 
 DEFAULT_FROM_EMAIL = os.getenv(
     "DEFAULT_FROM_EMAIL",
-    EMAIL_HOST_USER
+    EMAIL_HOST_USER,
 )
 
-EMAIL_TIMEOUT = 20
+EMAIL_TIMEOUT = int(
+    os.getenv("EMAIL_TIMEOUT", "20")
+)
 
 
 # =====================================================
-# CONFIGURATION CELERY ET REDIS - SUNUJOB AI
+# CELERY ET REDIS
 # =====================================================
 
-# Connexion Redis
 CELERY_BROKER_URL = os.getenv(
     "CELERY_BROKER_URL",
-    "redis://127.0.0.1:6379/0"
+    "redis://127.0.0.1:6379/0",
 )
 
 CELERY_RESULT_BACKEND = os.getenv(
     "CELERY_RESULT_BACKEND",
-    "redis://127.0.0.1:6379/1"
+    "redis://127.0.0.1:6379/1",
 )
 
+
 # Sérialisation
+
 CELERY_ACCEPT_CONTENT = ["json"]
+
 CELERY_TASK_SERIALIZER = "json"
+
 CELERY_RESULT_SERIALIZER = "json"
 
+
 # Fuseau horaire
+
 CELERY_TIMEZONE = "Africa/Dakar"
+
 CELERY_ENABLE_UTC = True
 
+
 # Découverte des tâches
+
 CELERY_IMPORTS = (
     "interviews.tasks",
     "notifications.tasks",
 )
 
-# Gestion de la connexion Redis
+
+# Connexion Redis
+
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
+
 # Planificateur Celery Beat
+
 CELERY_BEAT_SCHEDULER = (
     "django_celery_beat.schedulers:DatabaseScheduler"
 )
 
-# Vérification automatique des rappels d'entretien
+
+# Rappels automatiques des entretiens
+
 CELERY_BEAT_SCHEDULE = {
     "process-interview-reminders-every-minute": {
         "task": "interviews.tasks.process_due_interview_reminders",
@@ -399,45 +571,50 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+
 # Gestion des tâches
+
 CELERY_TASK_TRACK_STARTED = True
+
 CELERY_TASK_TIME_LIMIT = 300
+
 CELERY_TASK_SOFT_TIME_LIMIT = 240
 
-# Résultats des tâches
+
+# Résultats
+
 CELERY_TASK_IGNORE_RESULT = False
+
 CELERY_RESULT_EXPIRES = 3600
 
 
 # =====================================================
-# CONFIGURATION DJANGO
+# CONFIGURATION GÉNÉRALE DJANGO
 # =====================================================
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # =====================================================
-# CONFIGURATION TWILIO SMS
+# TWILIO SMS
 # =====================================================
 
 TWILIO_ACCOUNT_SID = os.getenv(
     "TWILIO_ACCOUNT_SID",
-    ""
+    "",
 )
 
 TWILIO_AUTH_TOKEN = os.getenv(
     "TWILIO_AUTH_TOKEN",
-    ""
+    "",
 )
 
 TWILIO_FROM_NUMBER = os.getenv(
     "TWILIO_FROM_NUMBER",
-    ""
+    "",
 )
 
-TWILIO_ENABLED = (
-    os.getenv(
-        "TWILIO_ENABLED",
-        "False"
-    ).lower() == "true"
+TWILIO_ENABLED = env_bool(
+    "TWILIO_ENABLED",
+    False,
 )

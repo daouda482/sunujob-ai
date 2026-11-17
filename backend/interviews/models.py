@@ -20,14 +20,16 @@ class Interview(models.Model):
 
     application = models.ForeignKey(
         Application,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="interviews",
         verbose_name="Candidature",
     )
 
     recruiter = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="scheduled_interviews",
         verbose_name="Recruteur",
     )
@@ -115,14 +117,12 @@ class InterviewReminder(models.Model):
         verbose_name="Date d'envoi du rappel"
     )
 
-    # Ancien indicateur global conservé pour compatibilité.
     sent_at = models.DateTimeField(
         null=True,
         blank=True,
         verbose_name="Date de traitement global",
     )
 
-    # Suivi indépendant des différents canaux.
     email_sent_at = models.DateTimeField(
         null=True,
         blank=True,
@@ -141,7 +141,6 @@ class InterviewReminder(models.Model):
         verbose_name="Date de création de la notification",
     )
 
-    # Empêche le traitement des rappels devenus obsolètes.
     is_invalidated = models.BooleanField(
         default=False,
         verbose_name="Rappel invalidé",

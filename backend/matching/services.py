@@ -4,7 +4,7 @@ import unicodedata
 
 
 # ============================================================
-# 1. ALIAS DES COMPETENCES
+# ALIAS DES COMPÉTENCES
 # ============================================================
 
 SKILL_ALIASES = {
@@ -48,8 +48,9 @@ SKILL_ALIASES = {
     "css3": "css",
     "css": "css",
 
-    "continuous integration": "ci/cd",
-    "continuous deployment": "ci/cd",
+    "continuous integration": "continuous integration",
+    "continuous deployment": "continuous deployment",
+    "ci cd": "ci/cd",
     "ci/cd": "ci/cd",
 
     "apprentissage automatique": "machine learning",
@@ -58,41 +59,54 @@ SKILL_ALIASES = {
     "ia": "intelligence artificielle",
     "intelligence artificielle": "intelligence artificielle",
 
-    "rest api": "api rest",
-    "restful api": "api rest",
-    "api rest": "api rest",
+    "rest api": "rest api",
+    "restful api": "rest api",
+    "api rest": "rest api",
 }
 
 
 # ============================================================
-# 2. NORMALISATION DES TEXTES
+# NORMALISATION DES TEXTES
 # ============================================================
 
 def normalize_text(value):
     """
-    Convertit un texte en minuscules, retire les accents
+    Convertit un texte en minuscules, supprime les accents
     et uniformise les espaces.
     """
 
     if value is None:
         return ""
 
-    value = str(value).strip().lower()
+    value = str(value).lower()
 
     value = unicodedata.normalize("NFKD", value)
 
     value = "".join(
-        char
-        for char in value
-        if not unicodedata.combining(char)
+        character
+        for character in value
+        if not unicodedata.combining(character)
     )
 
-    return re.sub(r"\s+", " ", value).strip()
+    value = re.sub(r"\s+", " ", value)
 
+    return value.strip()
+
+
+# ============================================================
+# NORMALISATION DES COMPÉTENCES
+# ============================================================
 
 def normalize_skill(value):
     """
-    Normalise une compétence et applique les alias connus.
+    Normalise une compétence et reconnaît ses alias.
+
+    Exemples :
+        JS       -> javascript
+        PY       -> python
+        React.js -> react
+        K8s      -> kubernetes
+        DRF      -> django rest framework
     """
 
     skill = normalize_text(value)
@@ -100,38 +114,42 @@ def normalize_skill(value):
     if not skill:
         return ""
 
-    # Uniformiser les variantes de ponctuation.
-    skill = re.sub(r"\s*\.\s*", ".", skill)
-    skill = re.sub(r"\s*/\s*", "/", skill)
-    skill = re.sub(r"\s*\+\s*", "+", skill)
+    # Uniformiser les séparateurs.
+    skill = re.sub(r"[_-]+", " ", skill)
+    skill = re.sub(r"\s+", " ", skill).strip()
 
+    # Vérifier les alias.
     return SKILL_ALIASES.get(skill, skill)
 
 
 # ============================================================
-# 3. EXTRACTION DES COMPETENCES
+# EXTRACTION DES COMPÉTENCES
 # ============================================================
 
 def extract_skills(value):
     """
+    Extrait et normalise les compétences.
+
     Accepte :
-    - Une chaîne séparée par virgules.
-    - Une chaîne séparée par points-virgules.
-    - Une chaîne avec retours à la ligne.
-    - Une liste, un tuple ou un ensemble.
+        - une chaîne séparée par des virgules ;
+        - une chaîne séparée par des points-virgules ;
+        - une chaîne avec des retours à la ligne ;
+        - une liste, un tuple ou un ensemble.
     """
 
-    if not value:
+    if value is None:
         return set()
 
     if isinstance(value, (list, tuple, set)):
         items = value
+
     else:
-        items = re.split(r"[,;\n\r]+", str(value))
+        items = re.split(r"[,;\n]+", str(value))
 
     skills = set()
 
     for item in items:
+
         skill = normalize_skill(item)
 
         if skill:
@@ -141,12 +159,12 @@ def extract_skills(value):
 
 
 # ============================================================
-# 4. NORMALISATION DES NIVEAUX D'ETUDES
+# NIVEAUX D'ÉTUDES
 # ============================================================
 
 EDUCATION_LEVELS = {
-    "aucun diplome": 0,
-    "none": 0,
+    "aucun": 0,
+    "sans diplome": 0,
 
     "bfem": 1,
 
@@ -154,78 +172,111 @@ EDUCATION_LEVELS = {
     "baccalaureat": 2,
 
     "bac+2": 3,
-    "bac plus 2": 3,
-    "bac_plus_2": 3,
+    "bac + 2": 3,
+    "bts": 3,
+    "dut": 3,
 
     "bac+3": 4,
-    "bac plus 3": 4,
-    "bac_plus_3": 4,
+    "bac + 3": 4,
+    "licence": 4,
 
     "bac+4": 5,
-    "bac plus 4": 5,
-    "bac_plus_4": 5,
+    "bac + 4": 5,
+    "master 1": 5,
+    "master1": 5,
+    "maitrise": 5,
 
     "bac+5": 6,
-    "bac plus 5": 6,
-    "bac_plus_5": 6,
-
+    "bac + 5": 6,
     "master": 6,
-    "master 1": 5,
     "master 2": 6,
+    "master2": 6,
+    "ingenieur": 6,
+    "ingenieurie": 6,
 
+    "bac+8": 7,
     "doctorat": 7,
-    "doctorate": 7,
+    "phd": 7,
 }
 
 
 def get_education_rank(value):
     """
-    Retourne le rang correspondant au niveau d'études.
-    Retourne None si le niveau est inconnu.
+    Retourne le niveau numérique correspondant au diplôme.
+
+    Retourne None lorsque le niveau est absent ou inconnu.
     """
 
-    normalized = normalize_text(value)
+    education = normalize_text(value)
 
-    if not normalized:
+    if not education:
         return None
 
-    normalized = re.sub(r"\s*\+\s*", "+", normalized)
+    education = re.sub(r"\s+", " ", education)
 
-    return EDUCATION_LEVELS.get(normalized)
+    return EDUCATION_LEVELS.get(education)
 
 
 # ============================================================
-# 5. CALCUL DE COMPATIBILITE
+# VALIDATION DES VALEURS NUMÉRIQUES
+# ============================================================
+
+def safe_number(value):
+    """
+    Convertit une valeur en nombre positif ou retourne None.
+
+    Les valeurs absentes, négatives ou invalides sont ignorées.
+    """
+
+    if value is None:
+        return None
+
+    try:
+        number = float(value)
+
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+    if not (number >= 0 and number < float("inf")):
+        return None
+
+    return number
+
+
+# ============================================================
+# CALCUL DE COMPATIBILITÉ
 # ============================================================
 
 def calculate_match(candidate_profile, job):
     """
-    Calcule un score indicatif de compatibilité sur 100.
+    Calcule la compatibilité entre un candidat et une offre.
 
-    Pondération :
-    - Compétences : 50 %
-    - Expérience : 25 %
-    - Formation : 15 %
-    - Domaine : 10 %
+    Pondérations :
+        Compétences       : 50 %
+        Expérience        : 25 %
+        Formation         : 15 %
+        Domaine           : 10 %
 
-    Les critères non évaluables sont exclus du dénominateur.
+    Les critères non évaluables sont exclus du calcul.
 
     Retourne :
-    score
-    coverage
-    matched_skills
-    missing_skills
-    reasons
+        score
+        coverage
+        matched_skills
+        missing_skills
+        reasons
     """
 
     weighted_score = 0.0
     applicable_weight = 0.0
 
+    matched_skills = []
+    missing_skills = []
     reasons = []
 
-    # --------------------------------------------------------
-    # A. COMPETENCES
-    # --------------------------------------------------------
+    # ========================================================
+    # 1. COMPÉTENCES : 50 %
+    # ========================================================
 
     candidate_skills = extract_skills(
         getattr(candidate_profile, "skills", None)
@@ -235,13 +286,15 @@ def calculate_match(candidate_profile, job):
         getattr(job, "skills_required", None)
     )
 
-    matched_skills = candidate_skills & required_skills
-
-    missing_skills = sorted(
-        required_skills - candidate_skills
-    )
-
     if required_skills:
+
+        matched_skills = sorted(
+            candidate_skills.intersection(required_skills)
+        )
+
+        missing_skills = sorted(
+            required_skills - candidate_skills
+        )
 
         skill_score = (
             len(matched_skills) / len(required_skills)
@@ -251,47 +304,47 @@ def calculate_match(candidate_profile, job):
         applicable_weight += 50
 
         reasons.append(
-            f"Compétences : {len(matched_skills)} sur "
-            f"{len(required_skills)} correspondent."
+            f"Compétences : {len(matched_skills)} "
+            f"sur {len(required_skills)} compétences requises "
+            f"sont maîtrisées."
         )
-
-        if matched_skills:
-            reasons.append(
-                "Compétences correspondantes : "
-                + ", ".join(sorted(matched_skills))
-            )
-
-        if missing_skills:
-            reasons.append(
-                "Compétences à développer : "
-                + ", ".join(missing_skills)
-            )
 
     else:
+
         reasons.append(
-            "Les compétences requises ne sont pas renseignées. "
-            "Ce critère est exclu du calcul."
+            "Aucune compétence obligatoire renseignée "
+            "dans l'offre. Ce critère est exclu du calcul."
         )
 
-    # --------------------------------------------------------
-    # B. EXPERIENCE PROFESSIONNELLE
-    # --------------------------------------------------------
+    # ========================================================
+    # 2. EXPÉRIENCE PROFESSIONNELLE : 25 %
+    # ========================================================
 
-    required_experience = max(
-        0,
-        getattr(job, "experience_required", None) or 0
+    candidate_experience = safe_number(
+        getattr(
+            candidate_profile,
+            "years_of_experience",
+            None,
+        )
     )
 
-    candidate_experience = max(
-        0,
-        getattr(candidate_profile, "years_of_experience", None) or 0
+    required_experience = safe_number(
+        getattr(
+            job,
+            "experience_required",
+            None,
+        )
     )
 
-    if required_experience > 0:
+    if (
+        candidate_experience is not None
+        and required_experience is not None
+        and required_experience > 0
+    ):
 
         experience_score = min(
             candidate_experience / required_experience,
-            1.0
+            1.0,
         )
 
         weighted_score += experience_score * 25
@@ -300,122 +353,153 @@ def calculate_match(candidate_profile, job):
         if candidate_experience >= required_experience:
 
             reasons.append(
-                "L'expérience minimale demandée est atteinte."
+                "L'expérience professionnelle demandée "
+                "est atteinte."
             )
 
         else:
 
             reasons.append(
-                f"Expérience : {candidate_experience} an(s) indiqué(s), "
-                f"{required_experience} an(s) demandé(s)."
+                "L'expérience professionnelle du candidat "
+                "est inférieure à celle demandée."
             )
 
     else:
+
         reasons.append(
-            "Aucune expérience minimale n'est exigée. "
-            "Ce critère est exclu du calcul."
+            "L'expérience professionnelle ne peut pas être "
+            "évaluée. Ce critère est exclu du calcul."
         )
 
-    # --------------------------------------------------------
-    # C. NIVEAU D'ETUDES
-    # --------------------------------------------------------
+    # ========================================================
+    # 3. FORMATION : 15 %
+    # ========================================================
 
     candidate_education = get_education_rank(
-        getattr(candidate_profile, "education_level", None)
+        getattr(
+            candidate_profile,
+            "education_level",
+            None,
+        )
     )
 
     required_education = get_education_rank(
-        getattr(job, "education_level", None)
+        getattr(
+            job,
+            "education_level",
+            None,
+        )
     )
 
-    if required_education is not None:
+    # CORRECTION :
+    # Le poids de 15 % est ajouté uniquement lorsque
+    # les deux niveaux d'études sont connus.
+
+    if (
+        candidate_education is not None
+        and required_education is not None
+    ):
 
         applicable_weight += 15
 
-        if candidate_education is not None:
+        if required_education == 0:
 
-            if required_education == 0:
-                education_score = 1.0
+            education_score = 1.0
 
-            else:
-                education_score = min(
-                    candidate_education / required_education,
-                    1.0
-                )
+        else:
 
-            weighted_score += education_score * 15
+            education_score = min(
+                candidate_education / required_education,
+                1.0,
+            )
 
-            if candidate_education >= required_education:
+        weighted_score += education_score * 15
 
-                reasons.append(
-                    "Le niveau d'études demandé est atteint."
-                )
+        if candidate_education >= required_education:
 
-            else:
-
-                reasons.append(
-                    "Le niveau d'études indiqué est inférieur "
-                    "au niveau demandé."
-                )
+            reasons.append(
+                "Le niveau d'études demandé est atteint."
+            )
 
         else:
 
             reasons.append(
-                "Le niveau d'études du candidat doit être précisé."
+                "Le niveau d'études du candidat est inférieur "
+                "au niveau demandé."
             )
+
+    elif candidate_education is None:
+
+        reasons.append(
+            "Le niveau d'études du candidat n'est pas renseigné "
+            "ou n'est pas reconnu. Ce critère est exclu du calcul."
+        )
 
     else:
 
         reasons.append(
-            "Le niveau d'études demandé est absent ou non reconnu. "
+            "Le niveau d'études demandé dans l'offre "
+            "n'est pas renseigné ou n'est pas reconnu. "
             "Ce critère est exclu du calcul."
         )
 
-    # --------------------------------------------------------
-    # D. DOMAINE DE FORMATION ET SECTEUR
-    # --------------------------------------------------------
+    # ========================================================
+    # 4. DOMAINE PROFESSIONNEL : 10 %
+    # ========================================================
 
     candidate_field = normalize_text(
-        getattr(candidate_profile, "field_of_study", None)
+        getattr(
+            candidate_profile,
+            "field_of_study",
+            None,
+        )
     )
 
     job_sector = normalize_text(
-        getattr(job, "sector", None)
+        getattr(
+            job,
+            "sector",
+            None,
+        )
     )
 
     if candidate_field and job_sector:
 
         applicable_weight += 10
 
-        if (
+        # Comparaison exacte ou inclusion contrôlée.
+        domain_match = (
             candidate_field == job_sector
             or candidate_field in job_sector
             or job_sector in candidate_field
-        ):
+        )
+
+        if domain_match:
 
             weighted_score += 10
 
             reasons.append(
-                "Le domaine de formation correspond au secteur."
+                "Le domaine de formation correspond "
+                "au secteur de l'offre."
             )
 
         else:
 
             reasons.append(
                 "Le domaine de formation ne correspond pas "
-                "directement au secteur indiqué."
+                "directement au secteur de l'offre."
             )
 
     else:
 
         reasons.append(
-            "Le domaine de formation ou le secteur n'est pas renseigné. "
-            "Ce critère est exclu du calcul."
+            "Le domaine de formation ou le secteur de l'offre "
+            "n'est pas renseigné. Ce critère est exclu du calcul."
         )
 
-    # --------------------------------------------------------
-    # E. SCORE FINAL
-    # --------------------------------------------------------
+    # ========================================================
+    # 5. SCORE FINAL
+    # ========================================================
 
     if applicable_weight > 0:
 
@@ -427,35 +511,24 @@ def calculate_match(candidate_profile, job):
 
         score = 0.0
 
-        reasons.append(
-            "Informations insuffisantes pour calculer "
-            "un score de compatibilité."
-        )
+    score = round(
+        max(0.0, min(score, 100.0)),
+        2,
+    )
 
-    # --------------------------------------------------------
-    # F. COUVERTURE DES CRITERES
-    # --------------------------------------------------------
+    coverage = round(
+        applicable_weight,
+        2,
+    )
 
-    coverage = round(applicable_weight, 2)
-
-    if coverage < 50:
-
-        reasons.append(
-            "Fiabilité limitée : plusieurs critères importants "
-            "ne peuvent pas être évalués avec les informations disponibles."
-        )
+    # ========================================================
+    # 6. RÉSULTAT
+    # ========================================================
 
     return {
-        "score": round(
-            min(max(score, 0.0), 100.0),
-            2
-        ),
-
+        "score": score,
         "coverage": coverage,
-
-        "matched_skills": sorted(matched_skills),
-
+        "matched_skills": matched_skills,
         "missing_skills": missing_skills,
-
         "reasons": reasons,
     }

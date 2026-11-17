@@ -1,13 +1,43 @@
 
 from pathlib import Path
 
+from django.core.exceptions import ValidationError as DjangoValidationError
+
 from rest_framework import serializers
 
 from .models import CandidateProfile
 
 
 class CandidateProfileSerializer(serializers.ModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    """
+    Serializer du profil candidat.
+
+    Sécurités :
+    - Le compte utilisateur ne peut pas être modifié depuis le profil.
+    - Les fichiers CV et photo sont contrôlés.
+    - Les tailles maximales sont vérifiées.
+    - Les champs personnels conservent leur fonctionnement actuel.
+    """
+
+    MAX_RESUME_SIZE = 5 * 1024 * 1024
+    MAX_PHOTO_SIZE = 2 * 1024 * 1024
+
+    ALLOWED_RESUME_EXTENSIONS = {
+        ".pdf",
+        ".doc",
+        ".docx",
+    }
+
+    ALLOWED_PHOTO_EXTENSIONS = {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+    }
+
+    user = serializers.PrimaryKeyRelatedField(
+        read_only=True,
+    )
 
     email = serializers.EmailField(
         source="user.email",
@@ -82,6 +112,10 @@ class CandidateProfileSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+    # =====================================================
+    # INFORMATIONS SUR LE CV
+    # =====================================================
+
     def get_has_cv(self, obj):
         return bool(obj.resume)
 
@@ -116,32 +150,85 @@ class CandidateProfileSerializer(serializers.ModelSerializer):
 
         return url
 
+    # =====================================================
+    # VALIDATION DU CV
+    # =====================================================
+
     def validate_resume(self, file):
         if file is None:
             return file
 
-        allowed_extensions = {".pdf", ".doc", ".docx"}
         extension = Path(file.name).suffix.lower()
 
-        if extension not in allowed_extensions:
+        if extension not in self.ALLOWED_RESUME_EXTENSIONS:
             raise serializers.ValidationError(
                 "Le CV doit être au format PDF, DOC ou DOCX."
             )
 
-        if file.size > 5 * 1024 * 1024:
+        if file.size > self.MAX_RESUME_SIZE:
             raise serializers.ValidationError(
                 "La taille du CV ne doit pas dépasser 5 Mo."
             )
 
+        # Vérification des signatures de fichiers.
+        try:
+            file.seek(0)
+            header = file.read(8)
+            file.seek(0)
+        except (OSError, ValueError):
+            raise serializers.ValidationError(
+                "Impossible de lire le fichier CV."
+            )
+
+        if extension == ".pdf":
+            if not header.startswith(b"%PDF-"):
+                raise serializers.ValidationError(
+                    "Le contenu du fichier PDF est invalide."
+                )
+
+        elif extension == ".doc":
+            if not header.startswith(bytes.fromhex("D0CF11E0A1B11AE1")):
+                raise serializers.ValidationError(
+                    "Le contenu du fichier DOC est invalide."
+                )
+
+        elif extension == ".docx":
+            if not header.startswith(b"PK"):
+                raise serializers.ValidationError(
+                    "Le contenu du fichier DOCX est invalide."
+                )
+
         return file
+
+    # =====================================================
+    # VALIDATION DE LA PHOTO
+    # =====================================================
 
     def validate_photo(self, file):
         if file is None:
             return file
 
-        if file.size > 2 * 1024 * 1024:
+        extension = Path(file.name).suffix.lower()
+
+        if extension not in self.ALLOWED_PHOTO_EXTENSIONS:
+            raise serializers.ValidationError(
+                "La photo doit être au format JPG, JPEG, PNG ou WEBP."
+            )
+
+        if file.size > self.MAX_PHOTO_SIZE:
             raise serializers.ValidationError(
                 "La photo ne doit pas dépasser 2 Mo."
+            )
+
+        # ImageField utilise déjà le système de validation
+        # des images de Django/Pillow.
+        try:
+            file.seek(0)
+            file.read(16)
+            file.seek(0)
+        except (OSError, ValueError):
+            raise serializers.ValidationError(
+                "Impossible de lire le fichier image."
             )
 
         return file
