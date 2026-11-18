@@ -48,13 +48,26 @@ def env_list(name, default=None):
 
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+
+# Render définit normalement RENDER=true et fournit RENDER_EXTERNAL_HOSTNAME.
+# Cette détection évite qu'un oubli de DEBUG fasse démarrer Render en mode debug.
+IS_RENDER = (
+    env_bool("RENDER", False)
+    or bool(RENDER_EXTERNAL_HOSTNAME)
+)
 
 DEBUG = env_bool(
     "DEBUG",
-    default=not bool(DATABASE_URL),
+    default=not IS_RENDER,
 )
 
 IS_PRODUCTION = not DEBUG
+
+if IS_RENDER and DEBUG:
+    raise RuntimeError(
+        "DEBUG doit impérativement être False sur Render."
+    )
 
 
 # =====================================================
@@ -69,18 +82,28 @@ if not SECRET_KEY:
             "DJANGO_SECRET_KEY doit être configurée en production."
         )
 
+    # Clé de secours réservée au développement local.
     SECRET_KEY = (
         "django-insecure-local-development-only-"
         "sunujob-ai-change-before-production"
     )
+
+if IS_PRODUCTION:
+    if (
+        len(SECRET_KEY) < 50
+        or len(set(SECRET_KEY)) < 5
+        or SECRET_KEY.startswith("django-insecure-")
+    ):
+        raise RuntimeError(
+            "DJANGO_SECRET_KEY est trop faible. "
+            "Configurez une clé aléatoire d'au moins 50 caractères."
+        )
 
 
 ALLOWED_HOSTS = env_list(
     "ALLOWED_HOSTS",
     default=["localhost", "127.0.0.1"] if DEBUG else [],
 )
-
-RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
 
 if RENDER_EXTERNAL_HOSTNAME:
     if RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
@@ -334,9 +357,11 @@ SECURE_PROXY_SSL_HEADER = (
     "https",
 )
 
-SECURE_SSL_REDIRECT = env_bool(
-    "SECURE_SSL_REDIRECT",
-    default=IS_PRODUCTION,
+# Render termine le TLS en amont et transmet le protocole via
+# X-Forwarded-Proto. Django reconnaît ainsi les requêtes HTTPS.
+SECURE_SSL_REDIRECT = (
+    IS_PRODUCTION
+    or env_bool("SECURE_SSL_REDIRECT", False)
 )
 
 SESSION_COOKIE_SECURE = IS_PRODUCTION
@@ -349,11 +374,22 @@ X_FRAME_OPTIONS = "DENY"
 
 SECURE_REFERRER_POLICY = "same-origin"
 
-SECURE_HSTS_SECONDS = int(
-    os.getenv(
-        "SECURE_HSTS_SECONDS",
-        "0",
+try:
+    _hsts_seconds = int(
+        os.getenv(
+            "SECURE_HSTS_SECONDS",
+            "3600" if IS_PRODUCTION else "0",
+        )
     )
+except (TypeError, ValueError):
+    _hsts_seconds = 3600 if IS_PRODUCTION else 0
+
+# Activation prudente d'HSTS pendant une heure en production.
+# Après validation complète du domaine HTTPS, cette durée pourra être augmentée.
+SECURE_HSTS_SECONDS = (
+    max(_hsts_seconds, 3600)
+    if IS_PRODUCTION
+    else max(_hsts_seconds, 0)
 )
 
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
