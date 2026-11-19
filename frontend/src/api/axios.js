@@ -1,9 +1,20 @@
 
 import axios from "axios";
 
-const BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  "http://127.0.0.1:8000/api/";
+// ============================================================
+// CONFIGURATION DE L'API
+// ============================================================
+
+const LOCAL_API_URL = "http://127.0.0.1:8000/api/";
+const PRODUCTION_API_URL =
+  "https://sunujob-ai-backend.onrender.com/api/";
+
+const configuredApiUrl = import.meta.env.VITE_API_BASE_URL;
+
+const BASE_URL = (
+  configuredApiUrl ||
+  (import.meta.env.PROD ? PRODUCTION_API_URL : LOCAL_API_URL)
+).replace(/\/+$/, "") + "/";
 
 // ============================================================
 // INSTANCES AXIOS
@@ -11,23 +22,21 @@ const BASE_URL =
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 30000,
+  timeout: 60000,
   headers: {
     Accept: "application/json",
   },
 });
 
-// Client indépendant pour le renouvellement JWT.
 const refreshClient = axios.create({
   baseURL: BASE_URL,
-  timeout: 30000,
+  timeout: 60000,
   headers: {
     Accept: "application/json",
   },
 });
 
 let refreshPromise = null;
-
 
 // ============================================================
 // ROUTES PUBLIQUES D'AUTHENTIFICATION
@@ -48,6 +57,7 @@ function normalizeUrl(url = "") {
   return String(url)
     .split(/[?#]/)[0]
     .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
     .replace(/\/+$/, "");
 }
 
@@ -60,7 +70,6 @@ function isPublicAuthEndpoint(url = "") {
       cleanUrl.endsWith(`/${route}`)
   );
 }
-
 
 // ============================================================
 // GESTION DU STOCKAGE
@@ -88,13 +97,11 @@ function getAuthStorage() {
 
 function getAccessToken() {
   const storage = getAuthStorage();
-
   return storage ? storage.getItem("access") : null;
 }
 
 function getRefreshToken() {
   const storage = getAuthStorage();
-
   return storage ? storage.getItem("refresh") : null;
 }
 
@@ -104,7 +111,6 @@ function clearAuthStorage() {
     sessionStorage.removeItem(key);
   });
 }
-
 
 // ============================================================
 // REDIRECTION VERS LA CONNEXION
@@ -118,7 +124,6 @@ function redirectToLogin() {
     window.location.assign("/login");
   }
 }
-
 
 // ============================================================
 // RENOUVELLEMENT DU TOKEN ACCESS
@@ -138,16 +143,12 @@ async function refreshAccessToken() {
       const refreshToken = storage.getItem("refresh");
 
       if (!refreshToken) {
-        throw new Error(
-          "Refresh Token introuvable."
-        );
+        throw new Error("Refresh Token introuvable.");
       }
 
       const response = await refreshClient.post(
         "token/refresh/",
-        {
-          refresh: refreshToken,
-        }
+        { refresh: refreshToken }
       );
 
       const newAccessToken = response.data?.access;
@@ -160,12 +161,8 @@ async function refreshAccessToken() {
 
       storage.setItem("access", newAccessToken);
 
-      // Gestion de la rotation éventuelle du Refresh Token.
       if (response.data?.refresh) {
-        storage.setItem(
-          "refresh",
-          response.data.refresh
-        );
+        storage.setItem("refresh", response.data.refresh);
       }
 
       return newAccessToken;
@@ -177,7 +174,6 @@ async function refreshAccessToken() {
   return refreshPromise;
 }
 
-
 // ============================================================
 // INTERCEPTEUR DES REQUÊTES
 // ============================================================
@@ -186,8 +182,6 @@ api.interceptors.request.use(
   (config) => {
     config.headers = config.headers || {};
 
-    // Les routes publiques ne doivent pas recevoir
-    // un ancien Access Token.
     if (isPublicAuthEndpoint(config.url)) {
       delete config.headers.Authorization;
       return config;
@@ -196,14 +190,11 @@ api.interceptors.request.use(
     const accessToken = getAccessToken();
 
     if (accessToken) {
-      config.headers.Authorization =
-        `Bearer ${accessToken}`;
+      config.headers.Authorization = `Bearer ${accessToken}`;
     } else {
       delete config.headers.Authorization;
     }
 
-    // Laisser Axios définir automatiquement le Content-Type
-    // et la boundary pour les données FormData.
     if (
       typeof FormData !== "undefined" &&
       config.data instanceof FormData
@@ -217,7 +208,6 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-
 // ============================================================
 // INTERCEPTEUR DES RÉPONSES
 // ============================================================
@@ -228,7 +218,6 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Ne traiter que les erreurs 401.
     if (
       error.response?.status !== 401 ||
       !originalRequest ||
@@ -248,7 +237,6 @@ api.interceptors.response.use(
       )
     );
 
-    // Ne pas rediriger les visiteurs non connectés.
     if (!hadSession) {
       return Promise.reject(error);
     }
@@ -256,14 +244,6 @@ api.interceptors.response.use(
     originalRequest._retry = true;
 
     try {
-      const refreshToken = getRefreshToken();
-
-      if (!refreshToken) {
-        throw new Error(
-          "Session expirée : Refresh Token indisponible."
-        );
-      }
-
       const newAccessToken = await refreshAccessToken();
 
       originalRequest.headers =
@@ -272,7 +252,6 @@ api.interceptors.response.use(
       originalRequest.headers.Authorization =
         `Bearer ${newAccessToken}`;
 
-      // Rejouer la requête avec le nouveau JWT.
       return api(originalRequest);
 
     } catch (refreshError) {
@@ -283,5 +262,9 @@ api.interceptors.response.use(
     }
   }
 );
+
+// ============================================================
+// EXPORT
+// ============================================================
 
 export default api;
