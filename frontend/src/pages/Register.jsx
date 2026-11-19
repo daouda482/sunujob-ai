@@ -35,6 +35,72 @@ const initialForm = {
   password_confirmation: "",
 };
 
+const fieldLabels = {
+  email: "E-mail",
+  password: "Mot de passe",
+  password_confirmation: "Confirmation du mot de passe",
+  role: "Profil",
+  phone: "Téléphone",
+  first_name: "Prénom",
+  last_name: "Nom",
+  detail: "Détail",
+  non_field_errors: "Erreur",
+};
+
+function getErrorMessage(value) {
+  if (Array.isArray(value)) {
+    return value.map(getErrorMessage).join(" ");
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value && typeof value === "object") {
+    return Object.entries(value)
+      .map(([key, item]) => {
+        const label = fieldLabels[key] || key;
+        return `${label} : ${getErrorMessage(item)}`;
+      })
+      .join(" ");
+  }
+
+  return String(value ?? "");
+}
+
+function getApiErrorMessage(error) {
+  const data = error.response?.data;
+
+  if (typeof data === "string" && data.trim()) {
+    return data;
+  }
+
+  if (data && typeof data === "object") {
+    const message = getErrorMessage(data);
+    if (message.trim()) {
+      return message;
+    }
+  }
+
+  if (error.code === "ECONNABORTED") {
+    return "Le serveur met trop de temps à répondre. Réessayez dans quelques instants.";
+  }
+
+  if (error.code === "ERR_NETWORK") {
+    return "Impossible de communiquer avec le serveur. Vérifiez la connexion, l'adresse de l'API et la configuration CORS.";
+  }
+
+  if (error.response?.status === 404) {
+    return "Le service d'inscription est introuvable. Vérifiez l'adresse de l'API.";
+  }
+
+  if (error.response?.status >= 500) {
+    return "Une erreur interne est survenue sur le serveur. Consultez les journaux Django sur Render.";
+  }
+
+  return error.message || "Une erreur inattendue est survenue pendant l'inscription.";
+}
+
 export default function Register() {
   const navigate = useNavigate();
 
@@ -69,7 +135,9 @@ export default function Register() {
       return "Veuillez remplir tous les champs obligatoires.";
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+    const email = form.email.trim();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return "Veuillez saisir une adresse e-mail valide.";
     }
 
@@ -90,6 +158,9 @@ export default function Register() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    if (loading) return;
+
     setError("");
     setSuccess("");
 
@@ -104,63 +175,45 @@ export default function Register() {
 
     try {
       const payload = {
-        ...form,
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
         email: form.email.trim().toLowerCase(),
         phone: form.phone.trim(),
+        role: form.role,
+        password: form.password,
+        password_confirmation: form.password_confirmation,
       };
 
-      await api.post("users/register/", payload);
+      const response = await api.post("users/register/", payload);
+
+      console.info("Inscription SunuJob AI : requête réussie.", {
+        status: response.status,
+      });
 
       setSuccess(
         "Votre compte a été créé avec succès. Vous pouvez maintenant vous connecter."
       );
 
-      setForm(initialForm);
+      setForm({ ...initialForm });
+      setAcceptedTerms(false);
+      setShowPassword(false);
+      setShowConfirmation(false);
 
       window.setTimeout(() => {
         navigate("/login", { replace: true });
       }, 1200);
     } catch (err) {
-      const data = err.response?.data;
+      console.error("Erreur lors de l'inscription SunuJob AI :", {
+        message: err.message,
+        code: err.code,
+        status: err.response?.status,
+        response: err.response?.data,
+        requestUrl: err.config?.baseURL
+          ? `${err.config.baseURL}${err.config.url || ""}`
+          : err.config?.url,
+      });
 
-      if (data && typeof data === "object") {
-        const messages = Object.entries(data)
-          .map(([field, value]) => {
-            const label =
-              field === "email"
-                ? "E-mail"
-                : field === "password"
-                  ? "Mot de passe"
-                  : field === "role"
-                    ? "Profil"
-                    : field === "phone"
-                      ? "Téléphone"
-                      : field === "first_name"
-                        ? "Prénom"
-                        : field === "last_name"
-                          ? "Nom"
-                          : field;
-
-            const detail = Array.isArray(value)
-              ? value.join(" ")
-              : typeof value === "string"
-                ? value
-                : JSON.stringify(value);
-
-            return `${label} : ${detail}`;
-          });
-
-        setError(
-          messages.join(" ") ||
-            "Impossible de créer le compte. Vérifiez vos informations."
-        );
-      } else {
-        setError(
-          "Impossible de joindre le serveur. Vérifiez que Django fonctionne."
-        );
-      }
+      setError(getApiErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -202,10 +255,12 @@ export default function Register() {
                 <span className="feature-check">✓</span>
                 Des opportunités adaptées à votre profil
               </div>
+
               <div className="showcase-feature">
                 <span className="feature-check">✓</span>
                 Un suivi simplifié de vos candidatures
               </div>
+
               <div className="showcase-feature">
                 <span className="feature-check">✓</span>
                 Une expérience de recrutement intelligente
@@ -242,8 +297,12 @@ export default function Register() {
           </div>
 
           <div className="register-heading">
-            <span className="register-step">VOTRE ESPACE PROFESSIONNEL</span>
+            <span className="register-step">
+              VOTRE ESPACE PROFESSIONNEL
+            </span>
+
             <h2>Créez votre compte</h2>
+
             <p>
               Rejoignez SunuJob AI et donnez une nouvelle dimension à votre
               parcours professionnel.
@@ -251,7 +310,10 @@ export default function Register() {
           </div>
 
           {error && (
-            <div className="register-alert register-alert-error" role="alert">
+            <div
+              className="register-alert register-alert-error"
+              role="alert"
+            >
               <span className="alert-icon">!</span>
               <span>{error}</span>
             </div>
@@ -267,7 +329,11 @@ export default function Register() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="register-form" noValidate>
+          <form
+            onSubmit={handleSubmit}
+            className="register-form"
+            noValidate
+          >
             <div className="register-field">
               <label>Je souhaite m'inscrire en tant que</label>
 
@@ -284,6 +350,7 @@ export default function Register() {
                         ...previous,
                         role: role.value,
                       }));
+
                       setError("");
                     }}
                     aria-pressed={form.role === role.value}
@@ -333,6 +400,7 @@ export default function Register() {
 
             <div className="register-field">
               <label htmlFor="email">Adresse e-mail *</label>
+
               <div className="register-input-wrap">
                 <span className="input-symbol">@</span>
                 <input
@@ -350,8 +418,10 @@ export default function Register() {
 
             <div className="register-field">
               <label htmlFor="phone">
-                Téléphone <span className="optional-label">Facultatif</span>
+                Téléphone{" "}
+                <span className="optional-label">Facultatif</span>
               </label>
+
               <div className="register-input-wrap">
                 <span className="input-symbol">☎</span>
                 <input
@@ -369,6 +439,7 @@ export default function Register() {
             <div className="register-name-grid">
               <div className="register-field">
                 <label htmlFor="password">Mot de passe *</label>
+
                 <div className="register-input-wrap">
                   <input
                     id="password"
@@ -381,10 +452,11 @@ export default function Register() {
                     minLength={8}
                     required
                   />
+
                   <button
                     type="button"
                     className="password-toggle"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={() => setShowPassword((previous) => !previous)}
                     aria-label={
                       showPassword
                         ? "Masquer le mot de passe"
@@ -400,6 +472,7 @@ export default function Register() {
                 <label htmlFor="password_confirmation">
                   Confirmer *
                 </label>
+
                 <div className="register-input-wrap">
                   <input
                     id="password_confirmation"
@@ -411,11 +484,12 @@ export default function Register() {
                     onChange={handleChange}
                     required
                   />
+
                   <button
                     type="button"
                     className="password-toggle"
                     onClick={() =>
-                      setShowConfirmation(!showConfirmation)
+                      setShowConfirmation((previous) => !previous)
                     }
                     aria-label={
                       showConfirmation
@@ -433,8 +507,11 @@ export default function Register() {
               <input
                 type="checkbox"
                 checked={acceptedTerms}
-                onChange={(event) => setAcceptedTerms(event.target.checked)}
+                onChange={(event) =>
+                  setAcceptedTerms(event.target.checked)
+                }
               />
+
               <span>
                 J'accepte les conditions d'utilisation et la politique de
                 confidentialité de SunuJob AI.
