@@ -1,9 +1,4 @@
 
-"""
-Django settings for SunuJob AI.
-Configuration locale SQLite et production PostgreSQL (Render).
-"""
-
 import os
 from pathlib import Path
 from datetime import timedelta
@@ -47,14 +42,27 @@ def env_list(name, default=None):
     ]
 
 
+def env_int(name, default, minimum=None):
+    """Lit un entier depuis l'environnement avec une valeur de secours."""
+    try:
+        value = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        value = default
+
+    if minimum is not None:
+        value = max(value, minimum)
+
+    return value
+
+
 DATABASE_URL = os.getenv("DATABASE_URL")
 RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
 
-# Render définit normalement RENDER=true et fournit RENDER_EXTERNAL_HOSTNAME.
-# Cette détection évite qu'un oubli de DEBUG fasse démarrer Render en mode debug.
+# Détection de Render à partir de ses variables d'environnement.
 IS_RENDER = (
     env_bool("RENDER", False)
     or bool(RENDER_EXTERNAL_HOSTNAME)
+    or bool(os.getenv("RENDER_SERVICE_ID"))
 )
 
 DEBUG = env_bool(
@@ -62,7 +70,8 @@ DEBUG = env_bool(
     default=not IS_RENDER,
 )
 
-IS_PRODUCTION = not DEBUG
+# Un service Render est toujours considéré comme un environnement de production.
+IS_PRODUCTION = IS_RENDER or not DEBUG
 
 if IS_RENDER and DEBUG:
     raise RuntimeError(
@@ -74,7 +83,7 @@ if IS_RENDER and DEBUG:
 # SÉCURITÉ
 # =====================================================
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "").strip()
 
 if not SECRET_KEY:
     if IS_PRODUCTION:
@@ -128,6 +137,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 
     "corsheaders",
+    "storages",
     "rest_framework",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
@@ -157,11 +167,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-
-    # Fichiers statiques en production
     "whitenoise.middleware.WhiteNoiseMiddleware",
-
-    # CORS doit être placé avant CommonMiddleware
     "corsheaders.middleware.CorsMiddleware",
 
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -207,6 +213,12 @@ TEMPLATES = [
 # SQLITE EN LOCAL / POSTGRESQL EN PRODUCTION
 # =====================================================
 
+if IS_PRODUCTION and not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL doit être configurée en production. "
+        "Configurez l'URL interne de votre PostgreSQL Render."
+    )
+
 if DATABASE_URL:
     DATABASES = {
         "default": dj_database_url.parse(
@@ -217,12 +229,18 @@ if DATABASE_URL:
         )
     }
 
-elif IS_PRODUCTION:
-    raise RuntimeError(
-        "DATABASE_URL doit être configurée pour PostgreSQL en production."
-    )
+    # Empêche une configuration SQLite accidentelle en production.
+    if (
+        IS_PRODUCTION
+        and DATABASES["default"]["ENGINE"]
+        != "django.db.backends.postgresql"
+    ):
+        raise RuntimeError(
+            "La base de données de production doit être PostgreSQL. "
+            "Vérifiez la variable DATABASE_URL."
+        )
 
-else:
+elif DEBUG:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -232,6 +250,12 @@ else:
             },
         }
     }
+
+else:
+    # Sécurité supplémentaire : ne jamais démarrer en production sur SQLite.
+    raise RuntimeError(
+        "Configuration de base de données invalide : PostgreSQL est requis."
+    )
 
 
 # =====================================================
@@ -298,16 +322,100 @@ MEDIA_URL = "/media/"
 
 MEDIA_ROOT = BASE_DIR / "media"
 
-STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
-    "staticfiles": {
-        "BACKEND": (
-            "whitenoise.storage.CompressedManifestStaticFilesStorage"
-        ),
-    },
-}
+# =====================================================
+# STOCKAGE DES FICHIERS MÉDIAS
+# LOCAL : FILESYSTEM
+# PRODUCTION : SUPABASE STORAGE (S3)
+# =====================================================
+
+if IS_PRODUCTION:
+
+    SUPABASE_S3_ACCESS_KEY_ID = os.getenv(
+        "SUPABASE_S3_ACCESS_KEY_ID", ""
+    ).strip()
+
+    SUPABASE_S3_SECRET_ACCESS_KEY = os.getenv(
+        "SUPABASE_S3_SECRET_ACCESS_KEY", ""
+    ).strip()
+
+    SUPABASE_S3_BUCKET_NAME = os.getenv(
+        "SUPABASE_S3_BUCKET_NAME", ""
+    ).strip()
+
+    SUPABASE_S3_ENDPOINT_URL = os.getenv(
+        "SUPABASE_S3_ENDPOINT_URL", ""
+    ).strip().rstrip(";")
+
+    SUPABASE_S3_REGION_NAME = os.getenv(
+        "SUPABASE_S3_REGION_NAME", ""
+    ).strip()
+
+    required_supabase_variables = {
+        "SUPABASE_S3_ACCESS_KEY_ID": SUPABASE_S3_ACCESS_KEY_ID,
+        "SUPABASE_S3_SECRET_ACCESS_KEY": SUPABASE_S3_SECRET_ACCESS_KEY,
+        "SUPABASE_S3_BUCKET_NAME": SUPABASE_S3_BUCKET_NAME,
+        "SUPABASE_S3_ENDPOINT_URL": SUPABASE_S3_ENDPOINT_URL,
+        "SUPABASE_S3_REGION_NAME": SUPABASE_S3_REGION_NAME,
+    }
+
+    missing_supabase_variables = [
+        name
+        for name, value in required_supabase_variables.items()
+        if not value
+    ]
+
+    if missing_supabase_variables:
+        raise RuntimeError(
+            "Configuration Supabase S3 incomplète. "
+            "Variables manquantes : "
+            + ", ".join(missing_supabase_variables)
+        )
+
+    from botocore.config import Config
+
+    SUPABASE_S3_CLIENT_CONFIG = Config(
+        signature_version="s3v4",
+        s3={
+            "addressing_style": "path",
+        },
+        request_checksum_calculation="when_required",
+        response_checksum_validation="when_required",
+    )
+
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+            "OPTIONS": {
+                "access_key": SUPABASE_S3_ACCESS_KEY_ID,
+                "secret_key": SUPABASE_S3_SECRET_ACCESS_KEY,
+                "bucket_name": SUPABASE_S3_BUCKET_NAME,
+                "endpoint_url": SUPABASE_S3_ENDPOINT_URL,
+                "region_name": SUPABASE_S3_REGION_NAME,
+                "client_config": SUPABASE_S3_CLIENT_CONFIG,
+                "querystring_auth": True,
+                "querystring_expire": 300,
+                "file_overwrite": False,
+            },
+        },
+        "staticfiles": {
+            "BACKEND": (
+                "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            ),
+        },
+    }
+
+else:
+
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": (
+                "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            ),
+        },
+    }
 
 
 # =====================================================
@@ -374,22 +482,18 @@ X_FRAME_OPTIONS = "DENY"
 
 SECURE_REFERRER_POLICY = "same-origin"
 
-try:
-    _hsts_seconds = int(
-        os.getenv(
-            "SECURE_HSTS_SECONDS",
-            "3600" if IS_PRODUCTION else "0",
-        )
-    )
-except (TypeError, ValueError):
-    _hsts_seconds = 3600 if IS_PRODUCTION else 0
+_hsts_default = 3600 if IS_PRODUCTION else 0
+_hsts_seconds = env_int(
+    "SECURE_HSTS_SECONDS",
+    _hsts_default,
+    minimum=0,
+)
 
-# Activation prudente d'HSTS pendant une heure en production.
-# Après validation complète du domaine HTTPS, cette durée pourra être augmentée.
+# Activation prudente d'HSTS pendant au moins une heure en production.
 SECURE_HSTS_SECONDS = (
     max(_hsts_seconds, 3600)
     if IS_PRODUCTION
-    else max(_hsts_seconds, 0)
+    else _hsts_seconds
 )
 
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
@@ -433,8 +537,10 @@ SIMPLE_JWT = {
 # CONFIGURATION DES CV
 # =====================================================
 
-CV_MAX_FILE_SIZE_MB = int(
-    os.getenv("CV_MAX_FILE_SIZE_MB", "8")
+CV_MAX_FILE_SIZE_MB = env_int(
+    "CV_MAX_FILE_SIZE_MB",
+    8,
+    minimum=1,
 )
 
 
@@ -452,15 +558,11 @@ OLLAMA_MODEL = os.getenv(
     "qwen2.5:3b",
 )
 
-try:
-    OLLAMA_TIMEOUT = int(
-        os.getenv("OLLAMA_TIMEOUT", "180")
-    )
-except (TypeError, ValueError):
-    OLLAMA_TIMEOUT = 180
-
-if OLLAMA_TIMEOUT <= 0:
-    OLLAMA_TIMEOUT = 180
+OLLAMA_TIMEOUT = env_int(
+    "OLLAMA_TIMEOUT",
+    180,
+    minimum=1,
+)
 
 
 # =====================================================
@@ -482,18 +584,11 @@ CV_AI_OLLAMA_MODEL = os.getenv(
     OLLAMA_MODEL,
 )
 
-try:
-    CV_AI_OLLAMA_TIMEOUT = int(
-        os.getenv(
-            "CV_AI_OLLAMA_TIMEOUT",
-            str(OLLAMA_TIMEOUT),
-        )
-    )
-except (TypeError, ValueError):
-    CV_AI_OLLAMA_TIMEOUT = OLLAMA_TIMEOUT
-
-if CV_AI_OLLAMA_TIMEOUT <= 0:
-    CV_AI_OLLAMA_TIMEOUT = 180
+CV_AI_OLLAMA_TIMEOUT = env_int(
+    "CV_AI_OLLAMA_TIMEOUT",
+    OLLAMA_TIMEOUT,
+    minimum=1,
+)
 
 
 # =====================================================
@@ -521,12 +616,11 @@ EMAIL_HOST = os.getenv(
     "smtp.gmail.com",
 )
 
-try:
-    EMAIL_PORT = int(
-        os.getenv("EMAIL_PORT", "587")
-    )
-except (TypeError, ValueError):
-    EMAIL_PORT = 587
+EMAIL_PORT = env_int(
+    "EMAIL_PORT",
+    587,
+    minimum=1,
+)
 
 EMAIL_USE_TLS = env_bool(
     "EMAIL_USE_TLS",
@@ -553,8 +647,10 @@ DEFAULT_FROM_EMAIL = os.getenv(
     EMAIL_HOST_USER,
 )
 
-EMAIL_TIMEOUT = int(
-    os.getenv("EMAIL_TIMEOUT", "20")
+EMAIL_TIMEOUT = env_int(
+    "EMAIL_TIMEOUT",
+    20,
+    minimum=1,
 )
 
 

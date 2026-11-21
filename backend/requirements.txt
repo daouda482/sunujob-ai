@@ -1,4 +1,3 @@
-
 Django==5.2.7
 asgiref==3.12.1
 django-cors-headers==4.9.0
@@ -24,7 +23,15 @@ PyJWT==2.15.1
 sqlparse==0.6.0
 tzdata==2026.5
 
-gunicorn
-psycopg[binary]
-dj-database-url
-whitenoise
+# Serveur WSGI pour Render
+gunicorn>=23.0,<24
+
+# Pilote PostgreSQL compatible avec Django 5.2
+psycopg[binary]>=3.2,<4
+
+# Lecture et conversion de DATABASE_URL
+dj-database-url>=2.3,<4
+
+# Fichiers statiques en production
+whitenoise>=6.9,<7
+django-storages[s3]==1.14.6
