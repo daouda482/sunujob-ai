@@ -3,10 +3,18 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
+
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
+
+# ==================================================
+# DIAGNOSTIC TEMPORAIRE DU STOCKAGE SUPABASE
+# ==================================================
+
+from config.storage_diagnostic import storage_diagnostic
+
 
 # ==================================================
 # PARAMÈTRES DE LA PLATEFORME
@@ -15,6 +23,7 @@ from rest_framework_simplejwt.views import (
 from users.platform_settings_views import (
     AdminPlatformSettingsAPIView,
 )
+
 
 # ==================================================
 # ADMINISTRATION SUNUJOB AI
@@ -90,6 +99,16 @@ urlpatterns = [
     path("admin/", admin.site.urls),
 
     # ==================================================
+    # DIAGNOSTIC TEMPORAIRE DU STOCKAGE SUPABASE
+    # ==================================================
+
+    path(
+        "api/internal/storage-diagnostic/",
+        storage_diagnostic,
+        name="storage-diagnostic",
+    ),
+
+    # ==================================================
     # AUTHENTIFICATION JWT
     # ==================================================
 
@@ -159,7 +178,11 @@ urlpatterns = [
         "api/interviews/",
         include("interviews.urls"),
     ),
-    path("api/evaluations/", include("evaluations.urls")),
+
+    path(
+        "api/evaluations/",
+        include("evaluations.urls"),
+    ),
 
     # ==================================================
     # NOTIFICATIONS ET INTELLIGENCE ARTIFICIELLE
@@ -175,13 +198,11 @@ urlpatterns = [
         include("matching.urls"),
     ),
 
-    # Assistant de préparation aux entretiens
     path(
         "api/ai-coach/",
         include("ai_coach.urls"),
     ),
 
-    # Moteur IA : analyse des CV avec Ollama
     path(
         "api/ai/",
         include("ai_engine.urls"),
@@ -191,14 +212,12 @@ urlpatterns = [
     # ADMINISTRATION SUNUJOB AI
     # ==================================================
 
-    # Tableau de bord
     path(
         "api/admin/dashboard/",
         AdminDashboardAPIView.as_view(),
         name="admin-dashboard",
     ),
 
-    # Gestion des utilisateurs
     path(
         "api/admin/users/",
         AdminUserListAPIView.as_view(),
@@ -211,14 +230,12 @@ urlpatterns = [
         name="admin-user-status",
     ),
 
-    # Gestion des entreprises
     path(
         "api/admin/companies/",
         AdminCompanyListAPIView.as_view(),
         name="admin-companies",
     ),
 
-    # Gestion des offres
     path(
         "api/admin/jobs/",
         AdminJobListAPIView.as_view(),
@@ -230,10 +247,17 @@ urlpatterns = [
         AdminJobStatusAPIView.as_view(),
         name="admin-job-status",
     ),
-    path("api/favorites/", include("favorites.urls")),
-    path("api/job-alerts/", include("job_alerts.urls")),
 
-    # Gestion des candidatures
+    path(
+        "api/favorites/",
+        include("favorites.urls"),
+    ),
+
+    path(
+        "api/job-alerts/",
+        include("job_alerts.urls"),
+    ),
+
     path(
         "api/admin/applications/",
         AdminApplicationListAPIView.as_view(),
@@ -246,14 +270,12 @@ urlpatterns = [
         name="admin-application-status",
     ),
 
-    # Notifications administrateur
     path(
         "api/admin/notifications/",
         AdminNotificationListAPIView.as_view(),
         name="admin-notifications",
     ),
 
-    # Rapports et statistiques
     path(
         "api/admin/reports/",
         AdminReportsAPIView.as_view(),
@@ -266,7 +288,6 @@ urlpatterns = [
         name="admin-reports-export",
     ),
 
-    # Journal d'activité
     path(
         "api/admin/audit-logs/",
         AdminAuditLogListAPIView.as_view(),
@@ -406,8 +427,15 @@ urlpatterns = [
         AdminPlatformSettingsAPIView.as_view(),
         name="admin-platform-settings",
     ),
+
     # ==================================================
-    path("api/audit-logs/", include("audit_logs.urls")),
+    # JOURNAUX D'AUDIT
+    # ==================================================
+
+    path(
+        "api/audit-logs/",
+        include("audit_logs.urls"),
+    ),
 ]
 
 
